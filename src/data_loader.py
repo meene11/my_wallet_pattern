@@ -83,6 +83,10 @@ IMPULSE_NIGHT_HOUR = 21         # 야간 시작 시간
 IMPULSE_FREQ_COUNT = 3          # 같은 날 동일 카테고리 N건 이상
 IMPULSE_DAILY_MULTIPLIER = 1.5  # 하루 평균 N배 초과
 
+# 소비 진단 등급 임계값 (충동 소비 비율 %)
+DIAG_HIGH_THRESHOLD = 20   # 이상 → 경고
+DIAG_MED_THRESHOLD = 10    # 이상 → 주의
+
 # 충동 소비 가능성 높은 카테고리
 IMPULSE_CATEGORIES = [
     "배달", "편의점", "온라인쇼핑", "쇼핑", "카페", "패스트푸드", "치킨/피자",

@@ -17,6 +17,7 @@ sys.path.append(os.path.dirname(__file__))
 from src.data_loader import (
     load_file, auto_map_columns, preprocess, get_summary,
     IMPULSE_CAT_MULTIPLIER, IMPULSE_NIGHT_HOUR, IMPULSE_FREQ_COUNT, IMPULSE_DAILY_MULTIPLIER,
+    DIAG_HIGH_THRESHOLD, DIAG_MED_THRESHOLD,
 )
 
 # ── 페이지 설정 ─────────────────────────────────────────────
@@ -194,22 +195,34 @@ if df_raw is not None:
 
             # ── 파이 차트 ──
             with col_chart:
+                PIE_OUTER_THRESHOLD = 8  # 이 수 초과 시 숫자를 원 밖으로
+                many = n_cats > PIE_OUTER_THRESHOLD
+                label_dist  = 1.18 if many else 0.84
+                label_fs    = max(5, 8 - max(0, n_cats - PIE_OUTER_THRESHOLD) // 2)
+                pct_dist    = 0.70 if many else 0.62
+                pct_fs      = max(5, label_fs - 1)
+
+                # 작은 슬라이스(3% 미만)는 % 숨김
+                total_amt_pie = cat_sum.sum()
+                def _autopct(pct):
+                    return f"{pct:.0f}%" if pct >= 3 else ""
+
                 fig, ax = plt.subplots(figsize=(2.8, 2.8))
                 colors = plt.cm.Set3.colors[:n_cats]
                 wedges, texts, autotexts = ax.pie(
                     cat_sum.values,
                     labels=labels_num,
-                    autopct="%1.0f%%",
+                    autopct=_autopct,
                     startangle=90,
-                    pctdistance=0.62,
-                    labeldistance=0.84,
+                    pctdistance=pct_dist,
+                    labeldistance=label_dist,
                     colors=colors,
                 )
                 for t in texts:
-                    t.set_fontsize(8)
+                    t.set_fontsize(label_fs)
                     t.set_fontweight("bold")
                 for a in autotexts:
-                    a.set_fontsize(7)
+                    a.set_fontsize(pct_fs)
                 plt.tight_layout()
                 st.pyplot(fig)
                 plt.close()
@@ -445,12 +458,12 @@ if df_raw is not None:
             top_cat = df.groupby("category")["amount"].sum().idxmax()
             top_amount = df.groupby("category")["amount"].sum().max()
 
-            if impulse_ratio > 20:
-                st.error(f"충동 소비 비율 **{impulse_ratio:.1f}%** — 꽤 높아요. 주요 원인: **{top_reason}**")
-            elif impulse_ratio > 10:
-                st.warning(f"충동 소비 비율 **{impulse_ratio:.1f}%** — 보통 수준이에요. 주요 원인: **{top_reason}**")
+            if impulse_ratio > DIAG_HIGH_THRESHOLD:
+                st.error(f"충동 소비 비율 **{impulse_ratio:.1f}%** (기준 {DIAG_HIGH_THRESHOLD}% 초과) — 주요 원인: **{top_reason}**")
+            elif impulse_ratio > DIAG_MED_THRESHOLD:
+                st.warning(f"충동 소비 비율 **{impulse_ratio:.1f}%** (기준 {DIAG_MED_THRESHOLD}% 초과) — 주요 원인: **{top_reason}**")
             else:
-                st.success(f"충동 소비 비율 **{impulse_ratio:.1f}%** — 소비 패턴이 안정적이에요!")
+                st.success(f"충동 소비 비율 **{impulse_ratio:.1f}%** (기준 {DIAG_MED_THRESHOLD}% 이하) — 소비 패턴이 안정적이에요!")
 
             night_key = f"{IMPULSE_NIGHT_HOUR}시 이후 결제"
             if reason_counts.get(night_key, 0) > 0 and night_ratio > 15:
