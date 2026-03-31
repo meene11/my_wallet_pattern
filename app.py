@@ -188,8 +188,8 @@ if df_raw is not None:
             total_amt = cat_sum.sum()
             n_cats = len(cat_sum)
 
-            # 번호 붙이기 (차트에서 숫자로만 표시)
-            labels_num = [str(i + 1) for i in range(n_cats)]
+            # 번호 붙이기 (25개 이상이면 점으로 대체)
+            labels_num = ["·"] * n_cats if n_cats >= 25 else [str(i + 1) for i in range(n_cats)]
 
             col_chart, col_table = st.columns([1, 1])
 
