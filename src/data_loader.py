@@ -135,8 +135,16 @@ def preprocess(df: pd.DataFrame, col_map: dict) -> pd.DataFrame:
     # 카테고리
     result["category"] = df[col_map["category"]].fillna("기타").astype(str) if "category" in col_map else "기타"
     result["subcategory"] = df[col_map["subcategory"]] if "subcategory" in col_map else ""
-    result["memo"] = df[col_map["memo"]] if "memo" in col_map else ""
+    result["memo"] = df[col_map["memo"]].fillna("").astype(str) if "memo" in col_map else ""
     result["payment_method"] = df[col_map["payment_method"]] if "payment_method" in col_map else "카드"
+
+    # 카테고리가 대부분 "기타"이면 memo(가맹점명)로 대체
+    기타_ratio = (result["category"] == "기타").mean()
+    if 기타_ratio >= 0.5 and result["memo"].str.strip().ne("").any():
+        result["category"] = result["memo"].str.strip().replace("", "기타").fillna("기타")
+        result["category"] = result["category"].apply(
+            lambda x: x[:10] if len(str(x)) > 10 else x  # 가맹점명 너무 길면 10자 자름
+        )
 
     # 파생 컬럼
     if "date" in result.columns:
