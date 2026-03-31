@@ -18,9 +18,10 @@ COLUMN_MAP = {
     "payment_method": ["payment_method", "결제수단", "카드종류"],
 }
 
-IMPULSE_KEYWORDS = [
-    "스트레스", "충동", "답답", "피곤", "그냥", "질러", "기분",
-    "위로", "폭식", "새벽", "울적", "화남", "짜증", "우울", "보상",
+# 충동 소비 가능성 높은 카테고리 키워드
+IMPULSE_CATEGORIES = [
+    "배달", "편의점", "온라인", "쇼핑", "간식", "카페", "커피",
+    "delivery", "convenience", "online", "shopping",
 ]
 
 
@@ -28,7 +29,6 @@ def load_file(uploaded_file) -> pd.DataFrame:
     """업로드된 파일을 DataFrame으로 변환"""
     filename = uploaded_file.name.lower()
     if filename.endswith(".csv"):
-        # 인코딩 자동 감지
         try:
             df = pd.read_csv(uploaded_file, encoding="utf-8-sig")
         except UnicodeDecodeError:
@@ -92,19 +92,74 @@ def preprocess(df: pd.DataFrame, col_map: dict) -> pd.DataFrame:
         result["month"] = result["date"].dt.month
         result["week"] = result["date"].dt.isocalendar().week.astype(int)
 
-    # 충동 소비 플래그
-    result["is_impulse"] = result["memo"].apply(
-        lambda x: any(kw in str(x) for kw in IMPULSE_KEYWORDS)
-        if not pd.isna(x) else False
-    )
-    result["is_night"] = result["hour"].apply(
-        lambda h: h >= 22 if not pd.isna(h) else False
-    )
-
     # 결측값 제거
     result = result.dropna(subset=["amount"])
     result = result[result["amount"] > 0]
     result = result.reset_index(drop=True)
+
+    # ── 충동 소비 탐지 (데이터 기반) ──────────────────────────
+
+    # 기준 1: 해당 카테고리 평균의 2배 이상 지출
+    cat_mean = result.groupby("category")["amount"].transform("mean")
+    result["flag_over_cat_avg"] = result["amount"] > cat_mean * 2
+
+    # 기준 2: 21시 이후 결제
+    result["flag_night"] = result["hour"].apply(
+        lambda h: h >= 21 if not pd.isna(h) else False
+    )
+
+    # 기준 3: 충동성 카테고리에서 하루 3건 이상
+    def is_impulse_cat(cat):
+        return any(kw in str(cat).lower() for kw in IMPULSE_CATEGORIES)
+
+    result["_is_impulse_cat"] = result["category"].apply(is_impulse_cat)
+    daily_impulse_cnt = result[result["_is_impulse_cat"]].groupby(
+        result["date"].dt.date
+    )["amount"].transform("count")
+    result["flag_freq_impulse"] = False
+    impulse_idx = result[result["_is_impulse_cat"]].index
+    result.loc[impulse_idx, "flag_freq_impulse"] = daily_impulse_cnt >= 3
+
+    # 기준 4: 하루 총 지출이 개인 일평균의 1.5배 초과
+    daily_total = result.groupby(result["date"].dt.date)["amount"].transform("sum")
+    personal_daily_avg = result.groupby(result["date"].dt.date)["amount"].sum().mean()
+    result["flag_over_daily_avg"] = daily_total > personal_daily_avg * 1.5
+
+    # 기준 5: 주말 야간 (토·일 + 21시 이후)
+    result["flag_weekend_night"] = (
+        (result["weekday"] >= 5) & result["flag_night"]
+    )
+
+    # 최종 충동 소비 플래그 + 이유 생성
+    result["is_impulse"] = (
+        result["flag_over_cat_avg"] |
+        result["flag_night"] |
+        result["flag_freq_impulse"] |
+        result["flag_over_daily_avg"] |
+        result["flag_weekend_night"]
+    )
+
+    def impulse_reason(row):
+        reasons = []
+        if row["flag_over_cat_avg"]:
+            reasons.append("카테고리 평균 2배 초과")
+        if row["flag_night"]:
+            reasons.append("21시 이후 결제")
+        if row["flag_freq_impulse"]:
+            reasons.append("같은 날 동일 카테고리 3건 이상")
+        if row["flag_over_daily_avg"]:
+            reasons.append("하루 지출 평균 1.5배 초과")
+        if row["flag_weekend_night"]:
+            reasons.append("주말 야간 결제")
+        return " / ".join(reasons) if reasons else ""
+
+    result["impulse_reason"] = result.apply(impulse_reason, axis=1)
+
+    # 내부용 컬럼 정리
+    result = result.drop(columns=["_is_impulse_cat"])
+
+    # 이전 호환용 (야간 여부)
+    result["is_night"] = result["flag_night"]
 
     return result
 

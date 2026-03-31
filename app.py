@@ -300,73 +300,115 @@ if df_raw is not None:
         # │ TAB 3 – 충동 소비 탐지
         # └─────────────────────────────────────────────────────
         with tab3:
-            impulse_df = df[df["is_impulse"] | df["is_night"]]
+            impulse_df = df[df["is_impulse"]].copy()
+
+            impulse_ratio = summary["impulse_total"] / summary["total"] * 100 if summary["total"] > 0 else 0
+            night_ratio = summary["night_total"] / summary["total"] * 100 if summary["total"] > 0 else 0
 
             c1, c2, c3 = st.columns(3)
             c1.metric(
                 "충동 소비 의심 금액",
                 f"{summary['impulse_total']:,}원",
-                delta=f"전체의 {summary['impulse_total']/summary['total']*100:.1f}%",
+                delta=f"전체의 {impulse_ratio:.1f}%",
                 delta_color="inverse",
             )
             c2.metric("충동 소비 의심 건수", f"{summary['impulse_count']}건")
             c3.metric(
-                "심야 지출",
+                "21시 이후 지출",
                 f"{summary['night_total']:,}원",
-                delta=f"전체의 {summary['night_total']/summary['total']*100:.1f}%",
+                delta=f"전체의 {night_ratio:.1f}%",
                 delta_color="inverse",
             )
 
+            # 탐지 기준 안내
+            with st.expander("탐지 기준 보기"):
+                st.markdown("""
+| 기준 | 설명 |
+|------|------|
+| 카테고리 평균 2배 초과 | 평소 그 카테고리에서 쓰는 금액의 2배 이상 |
+| 21시 이후 결제 | 저녁 9시 이후 발생한 모든 결제 |
+| 같은 날 동일 카테고리 3건 이상 | 하루에 같은 곳에서 3번 이상 결제 |
+| 하루 지출 평균 1.5배 초과 | 그날 총 지출이 내 일평균의 1.5배 넘을 때 |
+| 주말 야간 결제 | 토·일 21시 이후 결제 |
+                """)
+
             st.divider()
 
-            # 충동 소비 가능성 높은 거래 목록
+            # 충동 소비 거래 목록 + 이유 표시
             st.markdown("**충동 소비 의심 거래 목록**")
-            st.caption("기준: 메모에 감정 키워드 포함 OR 심야(22시 이후) 결제")
 
             if len(impulse_df) > 0:
-                show_cols = ["date", "category", "amount", "memo"]
+                show_cols = ["date", "category", "amount", "impulse_reason"]
+                if "memo" in impulse_df.columns:
+                    show_cols = ["date", "category", "amount", "memo", "impulse_reason"]
                 show_cols = [c for c in show_cols if c in impulse_df.columns]
                 st.dataframe(
-                    impulse_df[show_cols].sort_values("amount", ascending=False),
+                    impulse_df[show_cols].sort_values("amount", ascending=False).rename(
+                        columns={"impulse_reason": "탐지 이유", "date": "날짜",
+                                 "category": "카테고리", "amount": "금액", "memo": "메모"}
+                    ),
                     use_container_width=True,
-                    height=300,
+                    height=320,
                 )
+
+                # 탐지 이유별 건수 통계
+                st.markdown("**탐지 이유별 건수**")
+                reason_counts = {
+                    "카테고리 평균 2배 초과": int(df["flag_over_cat_avg"].sum()),
+                    "21시 이후 결제":         int(df["flag_night"].sum()),
+                    "동일 카테고리 3건+":      int(df["flag_freq_impulse"].sum()),
+                    "하루 평균 1.5배 초과":    int(df["flag_over_daily_avg"].sum()),
+                    "주말 야간":               int(df["flag_weekend_night"].sum()),
+                }
+                rc_df = pd.DataFrame(reason_counts.items(), columns=["이유", "건수"])
+                rc_df = rc_df[rc_df["건수"] > 0].sort_values("건수", ascending=False)
+
+                fig, ax = plt.subplots(figsize=(8, 3))
+                ax.barh(rc_df["이유"][::-1], rc_df["건수"][::-1], color="#FF6B6B", edgecolor="white")
+                ax.set_xlabel("건수")
+                for i, v in enumerate(rc_df["건수"][::-1]):
+                    ax.text(v + 0.1, i, str(v), va="center", fontsize=10)
+                ax.set_xlim(0, rc_df["건수"].max() * 1.3)
+                plt.tight_layout()
+                st.pyplot(fig)
+                plt.close()
+
             else:
                 st.success("충동 소비 의심 거래가 없습니다!")
 
             # 충동 소비 카테고리 분포
             if len(impulse_df) > 0:
-                st.markdown("**충동 소비 카테고리 분포**")
+                st.markdown("**충동 소비 카테고리별 금액**")
                 imp_cat = impulse_df.groupby("category")["amount"].sum().sort_values(ascending=False)
-                fig, ax = plt.subplots(figsize=(8, 3))
+                fig, ax = plt.subplots(figsize=(9, 3))
                 ax.bar(imp_cat.index, imp_cat.values, color="#FF6B6B", edgecolor="white")
                 ax.set_ylabel("금액 (원)")
-                ax.set_title("충동 소비 카테고리별 금액")
+                ax.tick_params(axis="x", rotation=30)
+                max_v = imp_cat.values.max()
                 for i, v in enumerate(imp_cat.values):
-                    ax.text(i, v + 100, f"{v:,.0f}", ha="center", fontsize=9)
+                    ax.text(i, v + max_v * 0.01, f"{v:,.0f}", ha="center", fontsize=8)
+                ax.set_ylim(0, max_v * 1.2)
                 plt.tight_layout()
                 st.pyplot(fig)
                 plt.close()
 
-            # AI 코멘트
+            # 소비 진단 코멘트
             st.divider()
-            st.markdown("**AI 소비 진단**")
-            impulse_ratio = summary["impulse_total"] / summary["total"] * 100 if summary["total"] > 0 else 0
-            night_ratio = summary["night_total"] / summary["total"] * 100 if summary["total"] > 0 else 0
+            st.markdown("**소비 진단**")
 
             if impulse_ratio > 20:
-                st.error(f"⚠️ 충동 소비 비율이 **{impulse_ratio:.1f}%**로 높습니다. 감정이 소비로 이어지는 패턴이 있어요.")
+                st.error(f"충동 소비 비율 **{impulse_ratio:.1f}%** — 꽤 높아요. 특히 야간이나 배달 지출을 줄여보세요.")
             elif impulse_ratio > 10:
-                st.warning(f"💡 충동 소비 비율 **{impulse_ratio:.1f}%** — 적당하지만 조금 더 줄여볼 수 있어요.")
+                st.warning(f"충동 소비 비율 **{impulse_ratio:.1f}%** — 보통 수준이에요. 조금만 더 줄이면 됩니다.")
             else:
-                st.success(f"✅ 충동 소비 비율 **{impulse_ratio:.1f}%** — 소비 패턴이 안정적이에요!")
+                st.success(f"충동 소비 비율 **{impulse_ratio:.1f}%** — 소비 패턴이 안정적이에요!")
 
-            if night_ratio > 10:
-                st.warning(f"🌙 심야 지출 비율 **{night_ratio:.1f}%** — 늦은 밤 충동 구매를 주의해보세요.")
+            if night_ratio > 15:
+                st.warning(f"21시 이후 지출 비율 **{night_ratio:.1f}%** — 저녁 이후 충동 구매 패턴이 있어요.")
 
             top_cat = df.groupby("category")["amount"].sum().idxmax()
             top_amount = df.groupby("category")["amount"].sum().max()
-            st.info(f"📌 가장 많이 쓴 카테고리: **{top_cat}** ({top_amount:,}원) — 이 항목 예산을 먼저 관리해보세요.")
+            st.info(f"가장 많이 쓴 카테고리: **{top_cat}** ({top_amount:,}원) — 이 항목 예산을 먼저 관리해보세요.")
 
         # ┌─────────────────────────────────────────────────────
         # │ TAB 4 – 원본 데이터
