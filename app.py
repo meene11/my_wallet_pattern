@@ -188,8 +188,10 @@ if df_raw is not None:
             total_amt = cat_sum.sum()
             n_cats = len(cat_sum)
 
-            # 번호 붙이기 (25개 이상이면 점으로 대체)
-            labels_num = ["·"] * n_cats if n_cats >= 25 else [str(i + 1) for i in range(n_cats)]
+            # 표용 번호 (항상 숫자)
+            labels_num = [str(i + 1) for i in range(n_cats)]
+            # 파이차트용 번호 (26번째부터 · 으로 대체)
+            labels_pie = [str(i + 1) if i < 25 else "·" for i in range(n_cats)]
 
             col_chart, col_table = st.columns([1, 1])
 
@@ -211,7 +213,7 @@ if df_raw is not None:
                 colors = plt.cm.Set3.colors[:n_cats]
                 wedges, texts, autotexts = ax.pie(
                     cat_sum.values,
-                    labels=labels_num,
+                    labels=labels_pie,
                     autopct=_autopct,
                     startangle=90,
                     pctdistance=pct_dist,
