@@ -178,54 +178,56 @@ if df_raw is not None:
 
             st.divider()
 
-            col_l, col_r = st.columns(2)
+            cat_sum = df.groupby("category")["amount"].sum().sort_values(ascending=False)
+            n_cats = len(cat_sum)
+            # 카테고리 수에 따라 차트 높이 자동 조정
+            chart_h = max(4, n_cats * 0.55)
 
-            # 카테고리별 파이 차트
-            with col_l:
-                st.markdown("**카테고리별 지출 비율**")
-                cat_sum = df.groupby("category")["amount"].sum().sort_values(ascending=False)
-                fig, ax = plt.subplots(figsize=(6, 5))
-                wedges, texts, autotexts = ax.pie(
-                    cat_sum.values,
-                    labels=None,          # 라벨 겹침 방지 → legend로 대체
-                    autopct="%1.1f%%",
-                    startangle=90,
-                    pctdistance=0.75,
-                )
-                for t in autotexts:
-                    t.set_fontsize(9)
-                ax.legend(
-                    wedges,
-                    cat_sum.index,
-                    loc="upper left",
-                    bbox_to_anchor=(-0.3, 1.1),
-                    fontsize=9,
-                    frameon=False,
-                )
-                plt.tight_layout()
-                st.pyplot(fig)
-                plt.close()
+            # 카테고리별 파이 차트 → 세로 전체 사용
+            st.markdown("**카테고리별 지출 비율**")
+            fig, ax = plt.subplots(figsize=(8, chart_h))
+            wedges, texts, autotexts = ax.pie(
+                cat_sum.values,
+                labels=None,
+                autopct="%1.1f%%",
+                startangle=90,
+                pctdistance=0.78,
+            )
+            for t in autotexts:
+                t.set_fontsize(10)
+            ax.legend(
+                wedges,
+                [f"{k}  {v:,.0f}원" for k, v in zip(cat_sum.index, cat_sum.values)],
+                loc="center left",
+                bbox_to_anchor=(1.0, 0.5),
+                fontsize=10,
+                frameon=False,
+            )
+            plt.tight_layout()
+            st.pyplot(fig)
+            plt.close()
 
-            # 카테고리별 막대
-            with col_r:
-                st.markdown("**카테고리별 지출 금액**")
-                fig, ax = plt.subplots(figsize=(6, 5))
-                ax.barh(
-                    cat_sum.index[::-1],
-                    cat_sum.values[::-1],
-                    color="#4ECDC4",
-                    edgecolor="white",
-                )
-                ax.set_xlabel("금액 (원)")
-                ax.tick_params(axis="y", labelsize=9)
-                # 금액 레이블은 막대 끝에만 표시
-                max_val = cat_sum.values.max()
-                for i, v in enumerate(cat_sum.values[::-1]):
-                    ax.text(v + max_val * 0.01, i, f"{v:,.0f}", va="center", fontsize=8)
-                ax.set_xlim(0, max_val * 1.25)
-                plt.tight_layout()
-                st.pyplot(fig)
-                plt.close()
+            # 카테고리별 가로 막대 → 카테고리 수만큼 높이 확장
+            st.markdown("**카테고리별 지출 금액**")
+            fig, ax = plt.subplots(figsize=(10, chart_h))
+            ax.barh(
+                cat_sum.index[::-1],
+                cat_sum.values[::-1],
+                color="#4ECDC4",
+                edgecolor="white",
+                height=0.6,
+            )
+            ax.set_xlabel("금액 (원)", fontsize=11)
+            ax.tick_params(axis="y", labelsize=10)
+            max_val = cat_sum.values.max()
+            for i, v in enumerate(cat_sum.values[::-1]):
+                ax.text(v + max_val * 0.01, i, f"{v:,.0f}원", va="center", fontsize=9)
+            ax.set_xlim(0, max_val * 1.3)
+            ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
+            plt.tight_layout()
+            st.pyplot(fig)
+            plt.close()
 
             # 일별 추이
             st.markdown("**일별 지출 추이**")

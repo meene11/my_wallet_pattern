@@ -42,15 +42,69 @@ def load_file(uploaded_file) -> pd.DataFrame:
 
 
 def auto_map_columns(df: pd.DataFrame) -> dict:
-    """DataFrame 컬럼을 표준 컬럼명으로 자동 매핑"""
+    """컬럼명 키워드 매핑 + 데이터 타입 자동 추론으로 필수 컬럼 자동 감지"""
     mapping = {}
     df_cols_lower = {col.lower().strip(): col for col in df.columns}
 
+    # 1단계: 컬럼명 키워드 매칭
     for standard_col, candidates in COLUMN_MAP.items():
         for candidate in candidates:
             if candidate.lower() in df_cols_lower:
                 mapping[standard_col] = df_cols_lower[candidate.lower()]
                 break
+
+    # 2단계: 키워드 매칭 실패한 필수 컬럼은 데이터 타입으로 추론
+    used_cols = set(mapping.values())
+
+    # 날짜 추론: 파싱 성공률 70% 이상인 컬럼
+    if "date" not in mapping:
+        for col in df.columns:
+            if col in used_cols:
+                continue
+            try:
+                parsed = pd.to_datetime(df[col], errors="coerce")
+                if parsed.notna().mean() >= 0.7:
+                    mapping["date"] = col
+                    used_cols.add(col)
+                    break
+            except Exception:
+                continue
+
+    # 금액 추론: 숫자형이고 양수 비율 80% 이상, 고유값이 많은 컬럼
+    if "amount" not in mapping:
+        candidates = []
+        for col in df.columns:
+            if col in used_cols:
+                continue
+            cleaned = pd.to_numeric(
+                df[col].astype(str).str.replace(",", "").str.replace("원", ""),
+                errors="coerce"
+            )
+            if cleaned.notna().mean() >= 0.8 and (cleaned > 0).mean() >= 0.8:
+                candidates.append((col, cleaned.nunique()))
+        if candidates:
+            # 고유값 가장 많은 컬럼 (금액은 다양한 값을 가짐)
+            mapping["amount"] = max(candidates, key=lambda x: x[1])[0]
+            used_cols.add(mapping["amount"])
+
+    # 카테고리 추론: 문자열이고 고유값이 적은 컬럼 (2~30개)
+    if "category" not in mapping:
+        candidates = []
+        for col in df.columns:
+            if col in used_cols:
+                continue
+            try:
+                n_unique = df[col].nunique()
+                n_total = len(df)
+                # 고유값이 2~30개이거나 전체의 30% 이하인 문자형 컬럼
+                if 2 <= n_unique <= max(30, n_total * 0.3):
+                    candidates.append((col, n_unique))
+            except Exception:
+                continue
+        if candidates:
+            mapping["category"] = min(candidates, key=lambda x: x[1])[0]
+            used_cols.add(mapping["category"])
+
     return mapping
 
 
