@@ -23,3 +23,8 @@ api_key.txt
 # OS
 .DS_Store
 Thumbs.db
+
+# Claude Code
+.claude/
+*.tmp.*
+src/*.tmp.*
