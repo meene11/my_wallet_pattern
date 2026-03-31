@@ -184,24 +184,32 @@ if df_raw is not None:
             with col_l:
                 st.markdown("**카테고리별 지출 비율**")
                 cat_sum = df.groupby("category")["amount"].sum().sort_values(ascending=False)
-                fig, ax = plt.subplots(figsize=(5, 4))
+                fig, ax = plt.subplots(figsize=(6, 5))
                 wedges, texts, autotexts = ax.pie(
                     cat_sum.values,
-                    labels=cat_sum.index,
+                    labels=None,          # 라벨 겹침 방지 → legend로 대체
                     autopct="%1.1f%%",
                     startangle=90,
-                    pctdistance=0.8,
+                    pctdistance=0.75,
                 )
                 for t in autotexts:
                     t.set_fontsize(9)
-                ax.set_title("카테고리별 지출 비율", fontsize=11)
+                ax.legend(
+                    wedges,
+                    cat_sum.index,
+                    loc="upper left",
+                    bbox_to_anchor=(-0.3, 1.1),
+                    fontsize=9,
+                    frameon=False,
+                )
+                plt.tight_layout()
                 st.pyplot(fig)
                 plt.close()
 
             # 카테고리별 막대
             with col_r:
                 st.markdown("**카테고리별 지출 금액**")
-                fig, ax = plt.subplots(figsize=(5, 4))
+                fig, ax = plt.subplots(figsize=(6, 5))
                 ax.barh(
                     cat_sum.index[::-1],
                     cat_sum.values[::-1],
@@ -209,9 +217,12 @@ if df_raw is not None:
                     edgecolor="white",
                 )
                 ax.set_xlabel("금액 (원)")
+                ax.tick_params(axis="y", labelsize=9)
+                # 금액 레이블은 막대 끝에만 표시
+                max_val = cat_sum.values.max()
                 for i, v in enumerate(cat_sum.values[::-1]):
-                    ax.text(v + 100, i, f"{v:,.0f}", va="center", fontsize=8)
-                ax.set_title("카테고리별 지출 금액", fontsize=11)
+                    ax.text(v + max_val * 0.01, i, f"{v:,.0f}", va="center", fontsize=8)
+                ax.set_xlim(0, max_val * 1.25)
                 plt.tight_layout()
                 st.pyplot(fig)
                 plt.close()
