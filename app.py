@@ -12,7 +12,10 @@ import sys
 import os
 
 sys.path.append(os.path.dirname(__file__))
-from src.data_loader import load_file, auto_map_columns, preprocess, get_summary
+from src.data_loader import (
+    load_file, auto_map_columns, preprocess, get_summary,
+    IMPULSE_CAT_MULTIPLIER, IMPULSE_NIGHT_HOUR, IMPULSE_FREQ_COUNT, IMPULSE_DAILY_MULTIPLIER,
+)
 
 # ── 페이지 설정 ─────────────────────────────────────────────
 st.set_page_config(
@@ -189,7 +192,7 @@ if df_raw is not None:
 
             # ── 파이 차트 ──
             with col_chart:
-                fig, ax = plt.subplots(figsize=(3.5, 3.5))
+                fig, ax = plt.subplots(figsize=(2.8, 2.8))
                 colors = plt.cm.Set3.colors[:n_cats]
                 wedges, texts, autotexts = ax.pie(
                     cat_sum.values,
@@ -228,7 +231,7 @@ if df_raw is not None:
             st.markdown("**일별 지출 추이**")
             daily = df.groupby("date")["amount"].sum().reset_index()
             daily["rolling_7"] = daily["amount"].rolling(7, min_periods=1).mean()
-            fig, ax = plt.subplots(figsize=(7, 2.5))
+            fig, ax = plt.subplots(figsize=(6, 2.0))
             ax.bar(daily["date"], daily["amount"], alpha=0.5, color="#5B8CFF", label="일별 지출")
             ax.plot(daily["date"], daily["rolling_7"], color="red", linewidth=1.5, label="7일 평균")
             ax.set_ylabel("금액 (원)", fontsize=9)
@@ -253,7 +256,7 @@ if df_raw is not None:
                 st.markdown("**요일별 지출**")
                 weekday_sum = df.groupby("weekday_name")["amount"].sum().reindex(weekday_order).fillna(0)
                 colors = ["#FF6B6B" if w in ["토", "일"] else "#4ECDC4" for w in weekday_order]
-                fig, ax = plt.subplots(figsize=(4, 2.8))
+                fig, ax = plt.subplots(figsize=(3.5, 2.2))
                 ax.bar(weekday_order, weekday_sum.values, color=colors, edgecolor="white")
                 ax.set_ylabel("금액 (원)", fontsize=9)
                 ax.tick_params(labelsize=8)
@@ -274,7 +277,7 @@ if df_raw is not None:
                 if df["hour"].notna().sum() > 0:
                     hour_sum = df.groupby("hour")["amount"].sum()
                     colors_h = ["#FF4444" if h >= 21 else "#5B8CFF" for h in hour_sum.index]
-                    fig, ax = plt.subplots(figsize=(4, 2.8))
+                    fig, ax = plt.subplots(figsize=(3.5, 2.2))
                     ax.bar(hour_sum.index, hour_sum.values, color=colors_h, edgecolor="white")
                     ax.set_xlabel("시간", fontsize=9)
                     ax.set_ylabel("금액 (원)", fontsize=9)
@@ -293,8 +296,8 @@ if df_raw is not None:
                 values="amount", index="category", columns="weekday_name",
                 aggfunc="sum", fill_value=0
             ).reindex(columns=[w for w in weekday_order if w in df["weekday_name"].unique()])
-            hmap_h = max(2.5, len(pivot) * 0.38)
-            fig, ax = plt.subplots(figsize=(7, hmap_h))
+            hmap_h = max(2.0, len(pivot) * 0.32)
+            fig, ax = plt.subplots(figsize=(5.5, hmap_h))
             sns.heatmap(
                 pivot, annot=True, fmt=",", cmap="YlOrRd",
                 linewidths=0.4, ax=ax, annot_kws={"size": 7},
@@ -331,14 +334,14 @@ if df_raw is not None:
 
             # 탐지 기준 안내
             with st.expander("탐지 기준 보기"):
-                st.markdown("""
+                st.markdown(f"""
 | 기준 | 설명 |
 |------|------|
-| 카테고리 평균 2배 초과 | 평소 그 카테고리에서 쓰는 금액의 2배 이상 |
-| 21시 이후 결제 | 저녁 9시 이후 발생한 모든 결제 |
-| 같은 날 동일 카테고리 3건 이상 | 하루에 같은 곳에서 3번 이상 결제 |
-| 하루 지출 평균 1.5배 초과 | 그날 총 지출이 내 일평균의 1.5배 넘을 때 |
-| 주말 야간 결제 | 토·일 21시 이후 결제 |
+| 카테고리 평균 {IMPULSE_CAT_MULTIPLIER:.0f}배 초과 | 평소 그 카테고리에서 쓰는 금액의 {IMPULSE_CAT_MULTIPLIER:.0f}배 이상 |
+| {IMPULSE_NIGHT_HOUR}시 이후 결제 | 저녁 {IMPULSE_NIGHT_HOUR}시 이후 발생한 모든 결제 |
+| 같은 날 동일 카테고리 {IMPULSE_FREQ_COUNT}건 이상 | 하루에 같은 곳에서 {IMPULSE_FREQ_COUNT}번 이상 결제 |
+| 하루 지출 평균 {IMPULSE_DAILY_MULTIPLIER}배 초과 | 그날 총 지출이 내 일평균의 {IMPULSE_DAILY_MULTIPLIER}배 넘을 때 |
+| 주말 야간 결제 | 토·일 {IMPULSE_NIGHT_HOUR}시 이후 결제 |
                 """)
 
             st.divider()
@@ -363,16 +366,16 @@ if df_raw is not None:
                 # 탐지 이유별 건수 통계
                 st.markdown("**탐지 이유별 건수**")
                 reason_counts = {
-                    "카테고리 평균 2배 초과": int(df["flag_over_cat_avg"].sum()),
-                    "21시 이후 결제":         int(df["flag_night"].sum()),
-                    "동일 카테고리 3건+":      int(df["flag_freq_impulse"].sum()),
-                    "하루 평균 1.5배 초과":    int(df["flag_over_daily_avg"].sum()),
-                    "주말 야간":               int(df["flag_weekend_night"].sum()),
+                    f"카테고리 평균 {IMPULSE_CAT_MULTIPLIER:.0f}배 초과": int(df["flag_over_cat_avg"].sum()),
+                    f"{IMPULSE_NIGHT_HOUR}시 이후 결제":                  int(df["flag_night"].sum()),
+                    f"동일 카테고리 {IMPULSE_FREQ_COUNT}건+":              int(df["flag_freq_impulse"].sum()),
+                    f"하루 평균 {IMPULSE_DAILY_MULTIPLIER}배 초과":        int(df["flag_over_daily_avg"].sum()),
+                    "주말 야간":                                           int(df["flag_weekend_night"].sum()),
                 }
                 rc_df = pd.DataFrame(reason_counts.items(), columns=["이유", "건수"])
                 rc_df = rc_df[rc_df["건수"] > 0].sort_values("건수", ascending=False)
 
-                fig, ax = plt.subplots(figsize=(6, max(1.5, len(rc_df) * 0.45)))
+                fig, ax = plt.subplots(figsize=(5, max(1.2, len(rc_df) * 0.38)))
                 ax.barh(rc_df["이유"][::-1], rc_df["건수"][::-1], color="#FF6B6B", edgecolor="white", height=0.5)
                 ax.set_xlabel("건수", fontsize=9)
                 ax.tick_params(labelsize=9)
@@ -392,7 +395,7 @@ if df_raw is not None:
             if len(impulse_df) > 0:
                 st.markdown("**충동 소비 카테고리별 금액**")
                 imp_cat = impulse_df.groupby("category")["amount"].sum().sort_values(ascending=False)
-                fig, ax = plt.subplots(figsize=(6, 2.5))
+                fig, ax = plt.subplots(figsize=(5, 2.0))
                 ax.bar(imp_cat.index, imp_cat.values, color="#FF6B6B", edgecolor="white")
                 ax.set_ylabel("금액 (원)", fontsize=9)
                 ax.tick_params(axis="x", rotation=30, labelsize=8)
@@ -413,11 +416,11 @@ if df_raw is not None:
 
             # 어떤 기준이 가장 많이 트리거됐는지 파악
             reason_counts = {
-                "카테고리 평균 2배 초과": int(df["flag_over_cat_avg"].sum()),
-                "21시 이후 결제":         int(df["flag_night"].sum()),
-                "동일 카테고리 3건+":      int(df["flag_freq_impulse"].sum()),
-                "하루 평균 1.5배 초과":    int(df["flag_over_daily_avg"].sum()),
-                "주말 야간":               int(df["flag_weekend_night"].sum()),
+                f"카테고리 평균 {IMPULSE_CAT_MULTIPLIER:.0f}배 초과": int(df["flag_over_cat_avg"].sum()),
+                f"{IMPULSE_NIGHT_HOUR}시 이후 결제":                  int(df["flag_night"].sum()),
+                f"동일 카테고리 {IMPULSE_FREQ_COUNT}건+":              int(df["flag_freq_impulse"].sum()),
+                f"하루 평균 {IMPULSE_DAILY_MULTIPLIER}배 초과":        int(df["flag_over_daily_avg"].sum()),
+                "주말 야간":                                           int(df["flag_weekend_night"].sum()),
             }
             top_reason = max(reason_counts, key=reason_counts.get)
             top_cat = df.groupby("category")["amount"].sum().idxmax()
