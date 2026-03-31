@@ -79,7 +79,7 @@ def preprocess(df: pd.DataFrame, col_map: dict) -> pd.DataFrame:
         result["amount"] = pd.to_numeric(amt, errors="coerce").abs()
 
     # 카테고리
-    result["category"] = df[col_map["category"]] if "category" in col_map else "기타"
+    result["category"] = df[col_map["category"]].fillna("기타").astype(str) if "category" in col_map else "기타"
     result["subcategory"] = df[col_map["subcategory"]] if "subcategory" in col_map else ""
     result["memo"] = df[col_map["memo"]] if "memo" in col_map else ""
     result["payment_method"] = df[col_map["payment_method"]] if "payment_method" in col_map else "카드"

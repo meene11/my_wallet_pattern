@@ -366,7 +366,7 @@ if df_raw is not None:
             # 필터
             col_f1, col_f2 = st.columns(2)
             with col_f1:
-                cats = ["전체"] + sorted(df["category"].unique().tolist())
+                cats = ["전체"] + sorted([str(c) for c in df["category"].dropna().unique().tolist()])
                 selected_cat = st.selectbox("카테고리 필터", cats)
             with col_f2:
                 min_amt = int(df["amount"].min())
