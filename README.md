@@ -100,7 +100,53 @@ my_wallet_pattern/
 ## 개발 환경
 
 ```bash
-pip install -r requirements.txt
+# 1. 가상환경 생성 및 활성화
+python -m venv venv
+venv\Scripts\activate        # Windows
+# source venv/bin/activate   # Mac/Linux
+
+# 2. 핵심 패키지 설치
+pip install pandas numpy matplotlib seaborn scikit-learn streamlit
+
+# 3. 웹앱 실행
+streamlit run app.py
 ```
 
 > 혼자 만드는 무료 프로젝트입니다. 모든 기술 스택은 오픈소스 또는 무료 티어 기반입니다.
+
+---
+
+## 배포
+
+### Streamlit Cloud (무료, 추천)
+
+GitHub 연동만으로 배포 가능합니다.
+
+1. [share.streamlit.io](https://share.streamlit.io) 접속 → GitHub 로그인
+2. `New app` 클릭
+3. 아래 설정 입력
+
+| 항목 | 값 |
+|------|-----|
+| Repository | `meene11/my_wallet_pattern` |
+| Branch | `main` |
+| Main file path | `app.py` |
+
+4. `Deploy` 클릭 → 자동 빌드 후 공개 URL 발급
+
+> 무료 플랜으로 충분합니다. 앱이 일정 시간 미사용 시 슬립 모드 진입 (재접속 시 자동 재시작).
+
+---
+
+### 로컬 실행
+
+```bash
+git clone https://github.com/meene11/my_wallet_pattern.git
+cd my_wallet_pattern
+python -m venv venv
+venv\Scripts\activate
+pip install pandas numpy matplotlib seaborn scikit-learn streamlit
+streamlit run app.py
+```
+
+브라우저에서 `http://localhost:8501` 자동으로 열립니다.
