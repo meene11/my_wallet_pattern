@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+env/
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# 데이터 (원본 대용량 제외, 샘플은 포함)
+data/raw/*.xlsx
+data/raw/*.json
+
+# API 키
+.env
+secrets.json
+api_key.txt
+
+# OS
+.DS_Store
+Thumbs.db

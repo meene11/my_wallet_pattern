@@ -1,0 +1,37 @@
+# 데이터 처리
+pandas==2.2.2
+numpy==1.26.4
+
+# 시각화
+matplotlib==3.9.0
+seaborn==0.13.2
+plotly==5.22.0
+
+# 머신러닝 (이상 탐지, 클러스터링)
+scikit-learn==1.5.0
+
+# 시계열 예측
+prophet==1.1.5
+
+# NLP / 감정 분석 (HuggingFace)
+transformers==4.41.2
+torch==2.3.0
+sentencepiece==0.2.0
+
+# LLM (Gemini API)
+google-generativeai==0.7.2
+
+# 벡터 DB (RAG)
+chromadb==0.5.0
+
+# 웹 앱
+streamlit==1.35.0
+
+# 노트북
+jupyter==1.0.0
+notebook==7.2.0
+ipykernel==6.29.4
+
+# 유틸
+python-dotenv==1.0.1
+tqdm==4.66.4
