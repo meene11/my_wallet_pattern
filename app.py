@@ -100,9 +100,10 @@ col_map = {}
 if uploaded:
     try:
         df_raw = load_file(uploaded)
-        st.success(f"파일 로드 완료! ({len(df_raw)}행)")
+        st.success(f"✅ 파일 로드 완료! ({len(df_raw)}행 × {len(df_raw.columns)}열)")
     except Exception as e:
         st.error(f"파일 로드 실패: {e}")
+        st.info("Excel 파일은 `pip install openpyxl` 설치가 필요합니다.")
 
 elif use_sample:
     sample_path = os.path.join(os.path.dirname(__file__), "data/raw/sample_spending.csv")
@@ -111,19 +112,36 @@ elif use_sample:
 
 # ── 컬럼 매핑 UI ─────────────────────────────────────────────
 if df_raw is not None:
+
+    # 파일 미리보기
+    with st.expander("📋 업로드된 파일 미리보기", expanded=True):
+        st.dataframe(df_raw.head(5), use_container_width=True)
+        st.caption(f"감지된 컬럼: {list(df_raw.columns)}")
+
     col_map = auto_map_columns(df_raw)
 
-    # 자동 매핑 안 된 경우 수동 선택
+    # 자동 매핑 결과 표시
     missing = [k for k in ["date", "amount", "category"] if k not in col_map]
-    if missing:
-        st.warning(f"아래 필수 컬럼을 직접 지정해주세요: {missing}")
-        with st.expander("컬럼 직접 매핑", expanded=True):
-            cols = ["(없음)"] + list(df_raw.columns)
-            label_map = {"date": "날짜 컬럼", "amount": "금액 컬럼", "category": "카테고리 컬럼"}
-            for key in missing:
-                selected = st.selectbox(label_map.get(key, key), cols, key=f"map_{key}")
-                if selected != "(없음)":
-                    col_map[key] = selected
+    label_map = {"date": "날짜", "amount": "금액", "category": "카테고리"}
+
+    if not missing:
+        st.success(f"✅ 컬럼 자동 매핑 완료 → 날짜: `{col_map['date']}` / 금액: `{col_map['amount']}` / 카테고리: `{col_map['category']}`")
+    else:
+        st.warning(f"⚠️ 아래 컬럼을 직접 지정해주세요 (자동 인식 실패: {[label_map[k] for k in missing]})")
+
+    # 수동 매핑 (항상 표시 — 자동 매핑 결과 수정 가능)
+    with st.expander("🔧 컬럼 매핑 설정" + ("  ← 여기서 직접 지정하세요!" if missing else ""), expanded=bool(missing)):
+        cols_options = ["(없음)"] + list(df_raw.columns)
+        full_label = {"date": "날짜 컬럼", "amount": "금액 컬럼", "category": "카테고리 컬럼",
+                      "time": "시간 컬럼 (선택)", "memo": "메모 컬럼 (선택)"}
+        for key in ["date", "amount", "category", "time", "memo"]:
+            default = col_map.get(key, "(없음)")
+            default_idx = cols_options.index(default) if default in cols_options else 0
+            selected = st.selectbox(full_label[key], cols_options, index=default_idx, key=f"map_{key}")
+            if selected != "(없음)":
+                col_map[key] = selected
+            elif key in col_map:
+                del col_map[key]
 
     # 처리 버튼
     can_process = all(k in col_map for k in ["date", "amount", "category"])
