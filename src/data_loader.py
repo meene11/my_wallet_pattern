@@ -182,20 +182,30 @@ def preprocess(df: pd.DataFrame, col_map: dict) -> pd.DataFrame:
     """매핑된 컬럼 기준으로 전처리"""
     result = pd.DataFrame()
 
-    # 날짜
+    # 날짜 + 시간 파싱
     if "date" in col_map:
-        result["date"] = pd.to_datetime(df[col_map["date"]], errors="coerce")
+        parsed_dt = pd.to_datetime(df[col_map["date"]], errors="coerce")
+        result["date"] = parsed_dt.dt.normalize()  # 날짜만 (00:00:00)
 
-    # 시간
-    if "time" in col_map:
-        try:
-            result["hour"] = pd.to_datetime(
-                df[col_map["time"]], format="%H:%M", errors="coerce"
-            ).dt.hour
-        except Exception:
+        # 날짜 컬럼에 시간 정보가 있으면 바로 추출
+        has_time = parsed_dt.dt.hour.ne(0).any() or parsed_dt.dt.minute.ne(0).any()
+        if has_time:
+            result["hour"] = parsed_dt.dt.hour
+        else:
             result["hour"] = np.nan
     else:
         result["hour"] = np.nan
+
+    # 별도 시간 컬럼이 있으면 덮어쓰기
+    if "time" in col_map:
+        try:
+            extracted = pd.to_datetime(
+                df[col_map["time"]], format="%H:%M", errors="coerce"
+            ).dt.hour
+            if extracted.notna().mean() >= 0.5:
+                result["hour"] = extracted
+        except Exception:
+            pass
 
     # 금액 (쉼표 제거 후 숫자 변환)
     if "amount" in col_map:
