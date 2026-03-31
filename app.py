@@ -8,6 +8,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 import seaborn as sns
+import plotly.graph_objects as go
+import streamlit.components.v1 as components
 import sys
 import os
 
@@ -392,23 +394,40 @@ if df_raw is not None:
                 st.success("충동 소비 의심 거래가 없습니다!")
 
             # 충동 소비 카테고리 분포
+            SCROLL_CAT_THRESHOLD = 8  # 이 수 초과하면 가로 스크롤 활성화
             if len(impulse_df) > 0:
                 st.markdown("**충동 소비 카테고리별 금액**")
                 imp_cat = impulse_df.groupby("category")["amount"].sum().sort_values(ascending=False)
-                fig, ax = plt.subplots(figsize=(5, 2.0))
-                ax.bar(imp_cat.index, imp_cat.values, color="#FF6B6B", edgecolor="white")
-                ax.set_ylabel("금액 (원)", fontsize=9)
-                ax.tick_params(axis="x", rotation=30, labelsize=8)
-                ax.tick_params(axis="y", labelsize=8)
-                max_v = imp_cat.values.max()
-                for i, v in enumerate(imp_cat.values):
-                    ax.text(i, v + max_v * 0.02, f"{v:,.0f}", ha="center", fontsize=7)
-                ax.set_ylim(0, max_v * 1.25)
-                ax.spines["top"].set_visible(False)
-                ax.spines["right"].set_visible(False)
-                plt.tight_layout()
-                st.pyplot(fig)
-                plt.close()
+                n_imp = len(imp_cat)
+
+                pfig = go.Figure(go.Bar(
+                    x=imp_cat.index.tolist(),
+                    y=imp_cat.values.tolist(),
+                    marker_color="#FF6B6B",
+                    text=[f"{v:,.0f}원" for v in imp_cat.values],
+                    textposition="outside",
+                ))
+                pfig.update_layout(
+                    height=260,
+                    margin=dict(l=40, r=20, t=10, b=70),
+                    yaxis_title="금액 (원)",
+                    showlegend=False,
+                    font=dict(size=11),
+                    xaxis=dict(tickangle=-35),
+                )
+
+                if n_imp > SCROLL_CAT_THRESHOLD:
+                    pfig.update_layout(width=max(500, n_imp * 70))
+                    html_str = pfig.to_html(
+                        include_plotlyjs="cdn", full_html=False,
+                        config={"displayModeBar": False},
+                    )
+                    components.html(
+                        f'<div style="overflow-x:auto;width:100%;">{html_str}</div>',
+                        height=300,
+                    )
+                else:
+                    st.plotly_chart(pfig, use_container_width=True)
 
             # 소비 진단 — 실제 데이터 기반
             st.divider()
@@ -433,7 +452,8 @@ if df_raw is not None:
             else:
                 st.success(f"충동 소비 비율 **{impulse_ratio:.1f}%** — 소비 패턴이 안정적이에요!")
 
-            if reason_counts["21시 이후 결제"] > 0 and night_ratio > 15:
+            night_key = f"{IMPULSE_NIGHT_HOUR}시 이후 결제"
+            if reason_counts.get(night_key, 0) > 0 and night_ratio > 15:
                 st.warning(f"21시 이후 지출 비율 **{night_ratio:.1f}%** — 저녁 이후 충동 구매 패턴이 있어요.")
 
             st.info(f"가장 많이 쓴 카테고리: **{top_cat}** ({top_amount:,}원) — 이 항목 예산을 먼저 관리해보세요.")
