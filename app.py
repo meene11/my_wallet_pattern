@@ -179,66 +179,65 @@ if df_raw is not None:
             st.divider()
 
             cat_sum = df.groupby("category")["amount"].sum().sort_values(ascending=False)
+            total_amt = cat_sum.sum()
             n_cats = len(cat_sum)
-            # 카테고리 수에 따라 차트 높이 자동 조정
-            chart_h = max(4, n_cats * 0.55)
 
-            # 카테고리별 파이 차트 → 세로 전체 사용
-            st.markdown("**카테고리별 지출 비율**")
-            fig, ax = plt.subplots(figsize=(8, chart_h))
-            wedges, texts, autotexts = ax.pie(
-                cat_sum.values,
-                labels=None,
-                autopct="%1.1f%%",
-                startangle=90,
-                pctdistance=0.78,
-            )
-            for t in autotexts:
-                t.set_fontsize(10)
-            ax.legend(
-                wedges,
-                [f"{k}  {v:,.0f}원" for k, v in zip(cat_sum.index, cat_sum.values)],
-                loc="center left",
-                bbox_to_anchor=(1.0, 0.5),
-                fontsize=10,
-                frameon=False,
-            )
-            plt.tight_layout()
-            st.pyplot(fig)
-            plt.close()
+            # 번호 붙이기 (차트에서 숫자로만 표시)
+            labels_num = [str(i + 1) for i in range(n_cats)]
 
-            # 카테고리별 가로 막대 → 카테고리 수만큼 높이 확장
-            st.markdown("**카테고리별 지출 금액**")
-            fig, ax = plt.subplots(figsize=(10, chart_h))
-            ax.barh(
-                cat_sum.index[::-1],
-                cat_sum.values[::-1],
-                color="#4ECDC4",
-                edgecolor="white",
-                height=0.6,
-            )
-            ax.set_xlabel("금액 (원)", fontsize=11)
-            ax.tick_params(axis="y", labelsize=10)
-            max_val = cat_sum.values.max()
-            for i, v in enumerate(cat_sum.values[::-1]):
-                ax.text(v + max_val * 0.01, i, f"{v:,.0f}원", va="center", fontsize=9)
-            ax.set_xlim(0, max_val * 1.3)
-            ax.spines["top"].set_visible(False)
-            ax.spines["right"].set_visible(False)
-            plt.tight_layout()
-            st.pyplot(fig)
-            plt.close()
+            col_chart, col_table = st.columns([1, 1])
 
-            # 일별 추이
+            # ── 파이 차트: 숫자만 표시 ──
+            with col_chart:
+                fig, ax = plt.subplots(figsize=(4, 4))
+                colors = plt.cm.Set3.colors[:n_cats]
+                wedges, texts, autotexts = ax.pie(
+                    cat_sum.values,
+                    labels=labels_num,
+                    autopct="%1.0f%%",
+                    startangle=90,
+                    pctdistance=0.6,
+                    labeldistance=0.82,
+                    colors=colors,
+                )
+                for t in texts:
+                    t.set_fontsize(9)
+                    t.set_fontweight("bold")
+                for a in autotexts:
+                    a.set_fontsize(8)
+                ax.set_title("카테고리별 비율", fontsize=11, pad=10)
+                plt.tight_layout()
+                st.pyplot(fig)
+                plt.close()
+
+            # ── 우측: 범례 테이블 ──
+            with col_table:
+                st.markdown("**카테고리별 지출 금액**")
+                legend_data = pd.DataFrame({
+                    "No": labels_num,
+                    "카테고리": cat_sum.index,
+                    "금액": [f"{v:,.0f}원" for v in cat_sum.values],
+                    "비율": [f"{v/total_amt*100:.1f}%" for v in cat_sum.values],
+                })
+                st.dataframe(
+                    legend_data,
+                    use_container_width=True,
+                    hide_index=True,
+                    height=min(40 * n_cats + 40, 400),
+                )
+
+            # ── 일별 추이 ──
             st.markdown("**일별 지출 추이**")
             daily = df.groupby("date")["amount"].sum().reset_index()
             daily["rolling_7"] = daily["amount"].rolling(7, min_periods=1).mean()
-            fig, ax = plt.subplots(figsize=(12, 3))
+            fig, ax = plt.subplots(figsize=(9, 3))
             ax.bar(daily["date"], daily["amount"], alpha=0.5, color="#5B8CFF", label="일별 지출")
-            ax.plot(daily["date"], daily["rolling_7"], color="red", linewidth=2, label="7일 평균")
-            ax.set_ylabel("금액 (원)")
-            ax.legend()
-            plt.xticks(rotation=30)
+            ax.plot(daily["date"], daily["rolling_7"], color="red", linewidth=1.8, label="7일 평균")
+            ax.set_ylabel("금액 (원)", fontsize=10)
+            ax.legend(fontsize=9)
+            ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
+            plt.xticks(rotation=30, fontsize=8)
             plt.tight_layout()
             st.pyplot(fig)
             plt.close()
