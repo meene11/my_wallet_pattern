@@ -187,32 +187,30 @@ if df_raw is not None:
 
             col_chart, col_table = st.columns([1, 1])
 
-            # ── 파이 차트: 숫자만 표시 ──
+            # ── 파이 차트 ──
             with col_chart:
-                fig, ax = plt.subplots(figsize=(4, 4))
+                fig, ax = plt.subplots(figsize=(3.5, 3.5))
                 colors = plt.cm.Set3.colors[:n_cats]
                 wedges, texts, autotexts = ax.pie(
                     cat_sum.values,
                     labels=labels_num,
                     autopct="%1.0f%%",
                     startangle=90,
-                    pctdistance=0.6,
-                    labeldistance=0.82,
+                    pctdistance=0.62,
+                    labeldistance=0.84,
                     colors=colors,
                 )
                 for t in texts:
-                    t.set_fontsize(9)
+                    t.set_fontsize(8)
                     t.set_fontweight("bold")
                 for a in autotexts:
-                    a.set_fontsize(8)
-                ax.set_title("카테고리별 비율", fontsize=11, pad=10)
+                    a.set_fontsize(7)
                 plt.tight_layout()
                 st.pyplot(fig)
                 plt.close()
 
-            # ── 우측: 범례 테이블 ──
+            # ── 범례 테이블 ──
             with col_table:
-                st.markdown("**카테고리별 지출 금액**")
                 legend_data = pd.DataFrame({
                     "No": labels_num,
                     "카테고리": cat_sum.index,
@@ -223,21 +221,21 @@ if df_raw is not None:
                     legend_data,
                     use_container_width=True,
                     hide_index=True,
-                    height=min(40 * n_cats + 40, 400),
+                    height=min(38 * n_cats + 38, 350),
                 )
 
             # ── 일별 추이 ──
             st.markdown("**일별 지출 추이**")
             daily = df.groupby("date")["amount"].sum().reset_index()
             daily["rolling_7"] = daily["amount"].rolling(7, min_periods=1).mean()
-            fig, ax = plt.subplots(figsize=(9, 3))
+            fig, ax = plt.subplots(figsize=(7, 2.5))
             ax.bar(daily["date"], daily["amount"], alpha=0.5, color="#5B8CFF", label="일별 지출")
-            ax.plot(daily["date"], daily["rolling_7"], color="red", linewidth=1.8, label="7일 평균")
-            ax.set_ylabel("금액 (원)", fontsize=10)
-            ax.legend(fontsize=9)
+            ax.plot(daily["date"], daily["rolling_7"], color="red", linewidth=1.5, label="7일 평균")
+            ax.set_ylabel("금액 (원)", fontsize=9)
+            ax.legend(fontsize=8)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
-            plt.xticks(rotation=30, fontsize=8)
+            plt.xticks(rotation=30, fontsize=7)
             plt.tight_layout()
             st.pyplot(fig)
             plt.close()
@@ -248,38 +246,46 @@ if df_raw is not None:
         with tab2:
             col_l, col_r = st.columns(2)
 
+            weekday_order = ["월", "화", "수", "목", "금", "토", "일"]
+
             # 요일별
             with col_l:
                 st.markdown("**요일별 지출**")
-                weekday_order = ["월", "화", "수", "목", "금", "토", "일"]
                 weekday_sum = df.groupby("weekday_name")["amount"].sum().reindex(weekday_order).fillna(0)
                 colors = ["#FF6B6B" if w in ["토", "일"] else "#4ECDC4" for w in weekday_order]
-                fig, ax = plt.subplots(figsize=(6, 4))
+                fig, ax = plt.subplots(figsize=(4, 2.8))
                 ax.bar(weekday_order, weekday_sum.values, color=colors, edgecolor="white")
-                ax.set_ylabel("금액 (원)")
-                ax.set_title("요일별 총 지출")
+                ax.set_ylabel("금액 (원)", fontsize=9)
+                ax.tick_params(labelsize=8)
+                max_w = weekday_sum.values.max()
                 for i, v in enumerate(weekday_sum.values):
-                    ax.text(i, v + 100, f"{v:,.0f}", ha="center", fontsize=8)
+                    if v > 0:
+                        ax.text(i, v + max_w * 0.02, f"{v/1000:.0f}k", ha="center", fontsize=7)
+                ax.set_ylim(0, max_w * 1.2)
+                ax.spines["top"].set_visible(False)
+                ax.spines["right"].set_visible(False)
                 plt.tight_layout()
                 st.pyplot(fig)
                 plt.close()
 
             # 시간대별
             with col_r:
-                st.markdown("**시간대별 지출** (데이터 있는 경우)")
+                st.markdown("**시간대별 지출**")
                 if df["hour"].notna().sum() > 0:
                     hour_sum = df.groupby("hour")["amount"].sum()
-                    colors_h = ["#FF4444" if h >= 22 else "#5B8CFF" for h in hour_sum.index]
-                    fig, ax = plt.subplots(figsize=(6, 4))
+                    colors_h = ["#FF4444" if h >= 21 else "#5B8CFF" for h in hour_sum.index]
+                    fig, ax = plt.subplots(figsize=(4, 2.8))
                     ax.bar(hour_sum.index, hour_sum.values, color=colors_h, edgecolor="white")
-                    ax.set_xlabel("시간 (24h)")
-                    ax.set_ylabel("금액 (원)")
-                    ax.set_title("시간대별 지출 (빨강=심야)")
+                    ax.set_xlabel("시간", fontsize=9)
+                    ax.set_ylabel("금액 (원)", fontsize=9)
+                    ax.tick_params(labelsize=7)
+                    ax.spines["top"].set_visible(False)
+                    ax.spines["right"].set_visible(False)
                     plt.tight_layout()
                     st.pyplot(fig)
                     plt.close()
                 else:
-                    st.info("시간 데이터가 없어 시간대 분석을 건너뜁니다.")
+                    st.info("파일에 시간 데이터가 없습니다.")
 
             # 카테고리 × 요일 히트맵
             st.markdown("**카테고리 × 요일 히트맵**")
@@ -287,12 +293,14 @@ if df_raw is not None:
                 values="amount", index="category", columns="weekday_name",
                 aggfunc="sum", fill_value=0
             ).reindex(columns=[w for w in weekday_order if w in df["weekday_name"].unique()])
-            fig, ax = plt.subplots(figsize=(10, max(3, len(pivot) * 0.6)))
+            hmap_h = max(2.5, len(pivot) * 0.38)
+            fig, ax = plt.subplots(figsize=(7, hmap_h))
             sns.heatmap(
                 pivot, annot=True, fmt=",", cmap="YlOrRd",
-                linewidths=0.5, ax=ax, cbar_kws={"label": "금액(원)"}
+                linewidths=0.4, ax=ax, annot_kws={"size": 7},
+                cbar_kws={"label": "금액(원)", "shrink": 0.8}
             )
-            ax.set_title("카테고리 × 요일 지출 히트맵")
+            ax.tick_params(labelsize=8)
             plt.tight_layout()
             st.pyplot(fig)
             plt.close()
@@ -364,12 +372,15 @@ if df_raw is not None:
                 rc_df = pd.DataFrame(reason_counts.items(), columns=["이유", "건수"])
                 rc_df = rc_df[rc_df["건수"] > 0].sort_values("건수", ascending=False)
 
-                fig, ax = plt.subplots(figsize=(8, 3))
-                ax.barh(rc_df["이유"][::-1], rc_df["건수"][::-1], color="#FF6B6B", edgecolor="white")
-                ax.set_xlabel("건수")
+                fig, ax = plt.subplots(figsize=(6, max(1.5, len(rc_df) * 0.45)))
+                ax.barh(rc_df["이유"][::-1], rc_df["건수"][::-1], color="#FF6B6B", edgecolor="white", height=0.5)
+                ax.set_xlabel("건수", fontsize=9)
+                ax.tick_params(labelsize=9)
                 for i, v in enumerate(rc_df["건수"][::-1]):
-                    ax.text(v + 0.1, i, str(v), va="center", fontsize=10)
+                    ax.text(v + 0.1, i, str(v), va="center", fontsize=9)
                 ax.set_xlim(0, rc_df["건수"].max() * 1.3)
+                ax.spines["top"].set_visible(False)
+                ax.spines["right"].set_visible(False)
                 plt.tight_layout()
                 st.pyplot(fig)
                 plt.close()
@@ -381,34 +392,47 @@ if df_raw is not None:
             if len(impulse_df) > 0:
                 st.markdown("**충동 소비 카테고리별 금액**")
                 imp_cat = impulse_df.groupby("category")["amount"].sum().sort_values(ascending=False)
-                fig, ax = plt.subplots(figsize=(9, 3))
+                fig, ax = plt.subplots(figsize=(6, 2.5))
                 ax.bar(imp_cat.index, imp_cat.values, color="#FF6B6B", edgecolor="white")
-                ax.set_ylabel("금액 (원)")
-                ax.tick_params(axis="x", rotation=30)
+                ax.set_ylabel("금액 (원)", fontsize=9)
+                ax.tick_params(axis="x", rotation=30, labelsize=8)
+                ax.tick_params(axis="y", labelsize=8)
                 max_v = imp_cat.values.max()
                 for i, v in enumerate(imp_cat.values):
-                    ax.text(i, v + max_v * 0.01, f"{v:,.0f}", ha="center", fontsize=8)
-                ax.set_ylim(0, max_v * 1.2)
+                    ax.text(i, v + max_v * 0.02, f"{v:,.0f}", ha="center", fontsize=7)
+                ax.set_ylim(0, max_v * 1.25)
+                ax.spines["top"].set_visible(False)
+                ax.spines["right"].set_visible(False)
                 plt.tight_layout()
                 st.pyplot(fig)
                 plt.close()
 
-            # 소비 진단 코멘트
+            # 소비 진단 — 실제 데이터 기반
             st.divider()
             st.markdown("**소비 진단**")
 
+            # 어떤 기준이 가장 많이 트리거됐는지 파악
+            reason_counts = {
+                "카테고리 평균 2배 초과": int(df["flag_over_cat_avg"].sum()),
+                "21시 이후 결제":         int(df["flag_night"].sum()),
+                "동일 카테고리 3건+":      int(df["flag_freq_impulse"].sum()),
+                "하루 평균 1.5배 초과":    int(df["flag_over_daily_avg"].sum()),
+                "주말 야간":               int(df["flag_weekend_night"].sum()),
+            }
+            top_reason = max(reason_counts, key=reason_counts.get)
+            top_cat = df.groupby("category")["amount"].sum().idxmax()
+            top_amount = df.groupby("category")["amount"].sum().max()
+
             if impulse_ratio > 20:
-                st.error(f"충동 소비 비율 **{impulse_ratio:.1f}%** — 꽤 높아요. 특히 야간이나 배달 지출을 줄여보세요.")
+                st.error(f"충동 소비 비율 **{impulse_ratio:.1f}%** — 꽤 높아요. 주요 원인: **{top_reason}**")
             elif impulse_ratio > 10:
-                st.warning(f"충동 소비 비율 **{impulse_ratio:.1f}%** — 보통 수준이에요. 조금만 더 줄이면 됩니다.")
+                st.warning(f"충동 소비 비율 **{impulse_ratio:.1f}%** — 보통 수준이에요. 주요 원인: **{top_reason}**")
             else:
                 st.success(f"충동 소비 비율 **{impulse_ratio:.1f}%** — 소비 패턴이 안정적이에요!")
 
-            if night_ratio > 15:
+            if reason_counts["21시 이후 결제"] > 0 and night_ratio > 15:
                 st.warning(f"21시 이후 지출 비율 **{night_ratio:.1f}%** — 저녁 이후 충동 구매 패턴이 있어요.")
 
-            top_cat = df.groupby("category")["amount"].sum().idxmax()
-            top_amount = df.groupby("category")["amount"].sum().max()
             st.info(f"가장 많이 쓴 카테고리: **{top_cat}** ({top_amount:,}원) — 이 항목 예산을 먼저 관리해보세요.")
 
         # ┌─────────────────────────────────────────────────────
