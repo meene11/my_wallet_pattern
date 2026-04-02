@@ -29,8 +29,15 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── 한글 폰트 ────────────────────────────────────────────────
-plt.rcParams["font.family"] = "Malgun Gothic"
+# ── 한글 폰트 (Windows: Malgun Gothic / Linux: NanumGothic) ──
+import matplotlib.font_manager as _fm
+_available = [f.name for f in _fm.fontManager.ttflist]
+if "Malgun Gothic" in _available:
+    plt.rcParams["font.family"] = "Malgun Gothic"
+elif "NanumGothic" in _available:
+    plt.rcParams["font.family"] = "NanumGothic"
+else:
+    plt.rcParams["font.family"] = "DejaVu Sans"
 plt.rcParams["axes.unicode_minus"] = False
 
 # ── 스타일 ───────────────────────────────────────────────────
