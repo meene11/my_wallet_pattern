@@ -601,10 +601,12 @@ if df_raw is not None:
                                      "category": "카테고리", "amount": "금액"})
                     .reset_index(drop=True)
                 )
+                display_df["금액"] = display_df["금액"].apply(lambda x: f"{int(x):,}")
                 display_df.index = range(1, len(display_df) + 1)
                 st.dataframe(display_df, use_container_width=True, height=480)
 
                 # 탐지 이유별 건수 통계
+                st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
                 st.markdown("**탐지 이유별 건수**")
                 reason_counts = {
                     f"카테고리 평균 {IMPULSE_CAT_MULTIPLIER:.0f}배 초과": int(df["flag_over_cat_avg"].sum()),
@@ -869,6 +871,9 @@ if df_raw is not None:
                     "font-size": "2.2rem",
                     "text-align": "center",
                     "vertical-align": "middle",
+                })
+                .set_properties(subset=["금액"], **{
+                    "text-align": "right",
                 })
             )
             st.dataframe(styled, use_container_width=True)
