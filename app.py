@@ -136,31 +136,52 @@ with st.sidebar:
     use_sample = st.button("샘플 데이터 불러오기", use_container_width=True)
 
     st.divider()
-    st.subheader("⚙️ 충동소비 탐지 기준")
-    st.caption("내 소비 패턴에 맞게 조정하세요")
+    with st.expander("⚙️ 충동소비 탐지 기준", expanded=False):
+        st.caption("값 변경 후 아래 버튼을 눌러야 분석에 반영됩니다.")
 
-    thr_cat_mult = st.slider(
-        "카테고리 평균 배수 초과",
-        min_value=1.5, max_value=5.0, value=float(IMPULSE_CAT_MULTIPLIER), step=0.5,
-        help="평소 그 카테고리 평균의 N배 넘으면 충동소비로 분류",
-    )
-    thr_night_hour = st.slider(
-        "야간 기준 시간",
-        min_value=18, max_value=23, value=int(IMPULSE_NIGHT_HOUR), step=1,
-        help="이 시간 이후 결제를 야간 충동소비로 분류",
-        format="%d시",
-    )
-    thr_freq_count = st.slider(
-        "동일 카테고리 일일 건수",
-        min_value=2, max_value=10, value=int(IMPULSE_FREQ_COUNT), step=1,
-        help="하루에 같은 카테고리에서 N건 이상이면 충동소비로 분류",
-    )
-    thr_daily_mult = st.slider(
-        "하루 지출 평균 배수 초과",
-        min_value=1.2, max_value=3.0, value=float(IMPULSE_DAILY_MULTIPLIER), step=0.1,
-        help="그날 총 지출이 내 일평균의 N배 넘으면 충동소비로 분류",
-        format="%.1fx",
-    )
+        thr_cat_mult = st.slider(
+            "카테고리 평균 배수 초과",
+            min_value=1.5, max_value=5.0,
+            value=float(st.session_state.get("applied_cat_mult", IMPULSE_CAT_MULTIPLIER)),
+            step=0.5,
+            help="평소 그 카테고리 평균의 N배 넘으면 충동소비로 분류",
+        )
+        thr_night_hour = st.slider(
+            "야간 기준 시간",
+            min_value=18, max_value=23,
+            value=int(st.session_state.get("applied_night_hour", IMPULSE_NIGHT_HOUR)),
+            step=1,
+            help="이 시간 이후 결제를 야간 충동소비로 분류",
+            format="%d시",
+        )
+        thr_freq_count = st.slider(
+            "동일 카테고리 일일 건수",
+            min_value=2, max_value=10,
+            value=int(st.session_state.get("applied_freq_count", IMPULSE_FREQ_COUNT)),
+            step=1,
+            help="하루에 같은 카테고리에서 N건 이상이면 충동소비로 분류",
+        )
+        thr_daily_mult = st.slider(
+            "하루 지출 평균 배수 초과",
+            min_value=1.2, max_value=3.0,
+            value=float(st.session_state.get("applied_daily_mult", IMPULSE_DAILY_MULTIPLIER)),
+            step=0.1,
+            help="그날 총 지출이 내 일평균의 N배 넘으면 충동소비로 분류",
+            format="%.1fx",
+        )
+
+        if st.button("✅ 기준 적용하기", use_container_width=True):
+            st.session_state["applied_cat_mult"] = thr_cat_mult
+            st.session_state["applied_night_hour"] = thr_night_hour
+            st.session_state["applied_freq_count"] = thr_freq_count
+            st.session_state["applied_daily_mult"] = thr_daily_mult
+            st.success("탐지 기준이 반영됐습니다!")
+
+    # 실제 분석에 사용할 값 (버튼 누른 값 기준)
+    thr_cat_mult   = float(st.session_state.get("applied_cat_mult",   IMPULSE_CAT_MULTIPLIER))
+    thr_night_hour = int(st.session_state.get("applied_night_hour",   IMPULSE_NIGHT_HOUR))
+    thr_freq_count = int(st.session_state.get("applied_freq_count",   IMPULSE_FREQ_COUNT))
+    thr_daily_mult = float(st.session_state.get("applied_daily_mult", IMPULSE_DAILY_MULTIPLIER))
 
     st.divider()
     st.caption("""
@@ -278,8 +299,8 @@ if df_raw is not None:
             "📊 전체 요약",
             "📅 패턴 분석",
             "🚨 충동 소비 탐지",
-            "🗃 원본 데이터",
             "💰 예산 관리",
+            "🗃 원본 데이터",
         ])
 
         # ┌─────────────────────────────────────────────────────
@@ -464,13 +485,13 @@ if df_raw is not None:
             # 탐지 기준 안내
             with st.expander("탐지 기준 보기"):
                 st.markdown(f"""
-| 기준 | 설명 |
-|------|------|
-| 카테고리 평균 {IMPULSE_CAT_MULTIPLIER:.0f}배 초과 | 평소 그 카테고리에서 쓰는 금액의 {IMPULSE_CAT_MULTIPLIER:.0f}배 이상 |
-| {IMPULSE_NIGHT_HOUR}시 이후 결제 | 저녁 {IMPULSE_NIGHT_HOUR}시 이후 발생한 모든 결제 |
-| 같은 날 동일 카테고리 {IMPULSE_FREQ_COUNT}건 이상 | 하루에 같은 곳에서 {IMPULSE_FREQ_COUNT}번 이상 결제 |
-| 하루 지출 평균 {IMPULSE_DAILY_MULTIPLIER}배 초과 | 그날 총 지출이 내 일평균의 {IMPULSE_DAILY_MULTIPLIER}배 넘을 때 |
-| 주말 야간 결제 | 토·일 {IMPULSE_NIGHT_HOUR}시 이후 결제 |
+| 기준 | 현재 적용값 |
+|------|------------|
+| 카테고리 평균 배수 초과 | 평균의 **{thr_cat_mult:.1f}배** 이상 |
+| 야간 기준 시간 | **{thr_night_hour}시** 이후 결제 |
+| 동일 카테고리 일일 건수 | 하루 **{thr_freq_count}건** 이상 |
+| 하루 지출 평균 배수 초과 | 일평균의 **{thr_daily_mult:.1f}배** 초과 |
+| 주말 야간 결제 | 토·일 **{thr_night_hour}시** 이후 결제 |
                 """)
 
             st.divider()
@@ -632,12 +653,86 @@ if df_raw is not None:
 
             ai_coaching(summary, df)
 
+
         # ┌─────────────────────────────────────────────────────
-        # │ TAB 4 – 원본 데이터
+        # │ TAB 4 – 예산 관리
         # └─────────────────────────────────────────────────────
         with tab4:
-            st.markdown("**원본 데이터 미리보기**")
+            st.markdown('<div class="section-title">💰 카테고리별 예산 설정</div>', unsafe_allow_html=True)
+            st.caption("이번 달 카테고리별 예산을 입력하면 초과 여부를 바로 확인할 수 있어요.")
 
+            BUDGET_CATEGORIES = ["식비", "쇼핑", "마트", "카페"]
+            cat_actual = df.groupby("category")["amount"].sum()
+
+            if "budgets" not in st.session_state:
+                st.session_state["budgets"] = {}
+
+            st.markdown("**예산 입력**")
+            cols = st.columns(4)
+            for i, cat in enumerate(BUDGET_CATEGORIES):
+                with cols[i]:
+                    default_val = int(st.session_state["budgets"].get(cat, 0))
+                    val = st.number_input(
+                        cat, min_value=0, step=10000, value=default_val,
+                        key=f"budget_{cat}", format="%d"
+                    )
+                    st.session_state["budgets"][cat] = val
+
+            st.divider()
+            st.markdown("**예산 vs 실제 지출**")
+
+            has_budget = any(st.session_state["budgets"].get(c, 0) > 0 for c in BUDGET_CATEGORIES)
+            if not has_budget:
+                st.info("위에서 예산을 입력하면 여기에 결과가 표시됩니다.")
+            else:
+                for cat in BUDGET_CATEGORIES:
+                    budget = st.session_state["budgets"].get(cat, 0)
+                    if budget == 0:
+                        continue
+                    actual = int(cat_actual.get(cat, 0))
+                    ratio = actual / budget if budget > 0 else 0
+                    over = actual > budget
+
+                    col_a, col_b = st.columns([3, 1])
+                    with col_a:
+                        bar_color = "🔴" if over else "🟢"
+                        st.markdown(f"**{bar_color} {cat}**")
+                        st.progress(min(ratio, 1.0))
+                    with col_b:
+                        st.metric(
+                            label="사용 / 예산",
+                            value=f"{actual:,}원",
+                            delta=f"{actual - budget:+,}원",
+                            delta_color="inverse",
+                        )
+
+                st.divider()
+                total_budget = sum(st.session_state["budgets"].get(c, 0) for c in BUDGET_CATEGORIES)
+                total_actual = int(sum(cat_actual.get(c, 0) for c in BUDGET_CATEGORIES))
+                over_cats = [
+                    c for c in BUDGET_CATEGORIES
+                    if st.session_state["budgets"].get(c, 0) > 0
+                    and cat_actual.get(c, 0) > st.session_state["budgets"].get(c, 0)
+                ]
+
+                c1, c2, c3 = st.columns(3)
+                c1.metric("총 예산", f"{total_budget:,}원")
+                c2.metric("총 지출", f"{total_actual:,}원",
+                          delta=f"{total_actual - total_budget:+,}원",
+                          delta_color="inverse")
+                c3.metric("초과 카테고리", f"{len(over_cats)}개",
+                          delta="주의 필요" if over_cats else "양호",
+                          delta_color="inverse" if over_cats else "normal")
+
+                if over_cats:
+                    st.error(f"예산 초과 항목: **{', '.join(over_cats)}**")
+                else:
+                    st.success("모든 카테고리가 예산 범위 내에 있습니다!")
+
+        # ┌─────────────────────────────────────────────────────
+        # │ TAB 5 – 원본 데이터
+        # └─────────────────────────────────────────────────────
+        with tab5:
             # 필터
             col_f1, col_f2 = st.columns(2)
             with col_f1:
@@ -666,87 +761,6 @@ if df_raw is not None:
                 file_name="spending_analysis.csv",
                 mime="text/csv",
             )
-
-        # ┌─────────────────────────────────────────────────────
-        # │ TAB 5 – 예산 관리
-        # └─────────────────────────────────────────────────────
-        with tab5:
-            st.markdown('<div class="section-title">💰 카테고리별 예산 설정</div>', unsafe_allow_html=True)
-            st.caption("이번 달 카테고리별 예산을 입력하면 초과 여부를 바로 확인할 수 있어요.")
-
-            categories = sorted(df["category"].dropna().unique().tolist())
-            cat_actual = df.groupby("category")["amount"].sum()
-
-            # 저장된 예산 불러오기 (session_state 유지)
-            if "budgets" not in st.session_state:
-                st.session_state["budgets"] = {}
-
-            st.markdown("**예산 입력**")
-            cols = st.columns(3)
-            for i, cat in enumerate(categories):
-                with cols[i % 3]:
-                    default_val = int(st.session_state["budgets"].get(cat, 0))
-                    val = st.number_input(
-                        cat, min_value=0, step=10000, value=default_val,
-                        key=f"budget_{cat}", format="%d"
-                    )
-                    st.session_state["budgets"][cat] = val
-
-            st.divider()
-            st.markdown("**예산 vs 실제 지출**")
-
-            has_budget = any(v > 0 for v in st.session_state["budgets"].values())
-            if not has_budget:
-                st.info("위에서 예산을 입력하면 여기에 결과가 표시됩니다.")
-            else:
-                for cat in categories:
-                    budget = st.session_state["budgets"].get(cat, 0)
-                    if budget == 0:
-                        continue
-                    actual = int(cat_actual.get(cat, 0))
-                    ratio = actual / budget if budget > 0 else 0
-                    over = actual > budget
-
-                    col_a, col_b = st.columns([3, 1])
-                    with col_a:
-                        bar_color = "🔴" if over else "🟢"
-                        st.markdown(f"**{bar_color} {cat}**")
-                        st.progress(min(ratio, 1.0))
-                    with col_b:
-                        st.metric(
-                            label="사용 / 예산",
-                            value=f"{actual:,}원",
-                            delta=f"{actual - budget:+,}원",
-                            delta_color="inverse",
-                        )
-
-                # 전체 요약
-                st.divider()
-                total_budget = sum(
-                    v for k, v in st.session_state["budgets"].items() if v > 0
-                )
-                total_actual = int(sum(
-                    cat_actual.get(k, 0)
-                    for k in st.session_state["budgets"] if st.session_state["budgets"][k] > 0
-                ))
-                over_cats = [
-                    k for k, v in st.session_state["budgets"].items()
-                    if v > 0 and cat_actual.get(k, 0) > v
-                ]
-
-                c1, c2, c3 = st.columns(3)
-                c1.metric("총 예산", f"{total_budget:,}원")
-                c2.metric("총 지출", f"{total_actual:,}원",
-                          delta=f"{total_actual - total_budget:+,}원",
-                          delta_color="inverse")
-                c3.metric("초과 카테고리", f"{len(over_cats)}개",
-                          delta="주의 필요" if over_cats else "양호",
-                          delta_color="inverse" if over_cats else "normal")
-
-                if over_cats:
-                    st.error(f"예산 초과 항목: **{', '.join(over_cats)}**")
-                else:
-                    st.success("모든 카테고리가 예산 범위 내에 있습니다!")
 
     else:
         st.warning("필수 컬럼(날짜, 금액, 카테고리)을 모두 매핑해야 분석이 시작됩니다.")
