@@ -299,8 +299,8 @@ if df_raw is not None:
             "📊 전체 요약",
             "📅 패턴 분석",
             "🚨 충동 소비 탐지",
+            "🗃 내역 조회",
             "💰 예산 관리",
-            "🗃 원본 데이터",
         ])
 
         # ┌─────────────────────────────────────────────────────
@@ -446,6 +446,7 @@ if df_raw is not None:
                 values="amount", index="category", columns="weekday_name",
                 aggfunc="sum", fill_value=0
             ).reindex(columns=[w for w in weekday_order if w in df["weekday_name"].unique()])
+            pivot.columns.name = None
             hmap_h = max(2.0, len(pivot) * 0.32)
             fig, ax = plt.subplots(figsize=(5.5, hmap_h))
             sns.heatmap(
@@ -677,9 +678,9 @@ if df_raw is not None:
 
 
         # ┌─────────────────────────────────────────────────────
-        # │ TAB 4 – 예산 관리
+        # │ TAB 5 – 예산 관리
         # └─────────────────────────────────────────────────────
-        with tab4:
+        with tab5:
             st.markdown('<div class="section-title">💰 카테고리별 예산 설정</div>', unsafe_allow_html=True)
             st.caption("이번 달 카테고리별 예산을 입력하면 초과 여부를 바로 확인할 수 있어요.")
 
@@ -752,9 +753,9 @@ if df_raw is not None:
                     st.success("모든 카테고리가 예산 범위 내에 있습니다!")
 
         # ┌─────────────────────────────────────────────────────
-        # │ TAB 5 – 원본 데이터
+        # │ TAB 4 – 내역 조회
         # └─────────────────────────────────────────────────────
-        with tab5:
+        with tab4:
             # 필터
             col_f1, col_f2 = st.columns(2)
             with col_f1:
