@@ -614,11 +614,11 @@ if df_raw is not None:
                 st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
                 st.markdown("**탐지 이유별 건수**")
                 reason_counts = {
-                    f"카테고리 평균 {IMPULSE_CAT_MULTIPLIER:.0f}배 초과": int(df["flag_over_cat_avg"].sum()),
-                    f"{IMPULSE_NIGHT_HOUR}시 이후 결제":                  int(df["flag_night"].sum()),
-                    f"동일 카테고리 {IMPULSE_FREQ_COUNT}건+":              int(df["flag_freq_impulse"].sum()),
-                    f"하루 평균 {IMPULSE_DAILY_MULTIPLIER}배 초과":        int(df["flag_over_daily_avg"].sum()),
-                    "주말 야간":                                           int(df["flag_weekend_night"].sum()),
+                    f"카테고리 평균 {thr_cat_mult:.1f}배 초과": int(df["flag_over_cat_avg"].sum()),
+                    f"{thr_night_hour}시 이후 결제":            int(df["flag_night"].sum()),
+                    f"동일 카테고리 {thr_freq_count}건+":        int(df["flag_freq_impulse"].sum()),
+                    f"하루 평균 {thr_daily_mult:.1f}배 초과":    int(df["flag_over_daily_avg"].sum()),
+                    "주말 야간":                                 int(df["flag_weekend_night"].sum()),
                 }
                 rc_df = pd.DataFrame(reason_counts.items(), columns=["이유", "건수"])
                 rc_df = rc_df[rc_df["건수"] > 0].sort_values("건수", ascending=False)
@@ -681,11 +681,11 @@ if df_raw is not None:
 
             # 어떤 기준이 가장 많이 트리거됐는지 파악
             reason_counts = {
-                f"카테고리 평균 {IMPULSE_CAT_MULTIPLIER:.0f}배 초과": int(df["flag_over_cat_avg"].sum()),
-                f"{IMPULSE_NIGHT_HOUR}시 이후 결제":                  int(df["flag_night"].sum()),
-                f"동일 카테고리 {IMPULSE_FREQ_COUNT}건+":              int(df["flag_freq_impulse"].sum()),
-                f"하루 평균 {IMPULSE_DAILY_MULTIPLIER}배 초과":        int(df["flag_over_daily_avg"].sum()),
-                "주말 야간":                                           int(df["flag_weekend_night"].sum()),
+                f"카테고리 평균 {thr_cat_mult:.1f}배 초과": int(df["flag_over_cat_avg"].sum()),
+                f"{thr_night_hour}시 이후 결제":            int(df["flag_night"].sum()),
+                f"동일 카테고리 {thr_freq_count}건+":        int(df["flag_freq_impulse"].sum()),
+                f"하루 평균 {thr_daily_mult:.1f}배 초과":    int(df["flag_over_daily_avg"].sum()),
+                "주말 야간":                                 int(df["flag_weekend_night"].sum()),
             }
             top_reason = max(reason_counts, key=reason_counts.get)
             top_cat = df.groupby("category")["amount"].sum().idxmax()
@@ -698,9 +698,9 @@ if df_raw is not None:
             else:
                 st.success(f"충동 소비 비율 **{impulse_ratio:.1f}%** (기준 {DIAG_MED_THRESHOLD}% 이하) — 소비 패턴이 안정적이에요!")
 
-            night_key = f"{IMPULSE_NIGHT_HOUR}시 이후 결제"
+            night_key = f"{thr_night_hour}시 이후 결제"
             if reason_counts.get(night_key, 0) > 0 and night_ratio > 15:
-                st.warning(f"21시 이후 지출 비율 **{night_ratio:.1f}%** — 저녁 이후 충동 구매 패턴이 있어요.")
+                st.warning(f"{thr_night_hour}시 이후 지출 비율 **{night_ratio:.1f}%** — 저녁 이후 충동 구매 패턴이 있어요.")
 
             st.info(f"가장 많이 쓴 카테고리: **{top_cat}** ({top_amount:,}원) — 이 항목 예산을 먼저 관리해보세요.")
 
