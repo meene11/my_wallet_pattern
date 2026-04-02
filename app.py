@@ -488,6 +488,11 @@ if df_raw is not None:
                 plt.tight_layout()
                 st.pyplot(fig)
                 plt.close()
+                st.markdown(
+                    "<p style='font-size:0.72rem;color:#aaa;margin-top:-6px;'>"
+                    "※ k = 1,000 &nbsp;|&nbsp; 예) 500k = 500,000원 (50만원)</p>",
+                    unsafe_allow_html=True,
+                )
 
             # 시간대별
             with col_r:
