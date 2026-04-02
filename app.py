@@ -760,7 +760,7 @@ if df_raw is not None:
             if "budgets" not in st.session_state:
                 st.session_state["budgets"] = {}
 
-            st.markdown("**예산 입력**")
+            st.markdown("**소비 목표 입력**")
             cols = st.columns(4)
             for i, cat in enumerate(BUDGET_CATEGORIES):
                 with cols[i]:
@@ -772,11 +772,11 @@ if df_raw is not None:
                     st.session_state["budgets"][cat] = val
 
             st.divider()
-            st.markdown("**예산 vs 실제 지출**")
+            st.markdown("**소비 목표 vs 실제 지출**")
 
             has_budget = any(st.session_state["budgets"].get(c, 0) > 0 for c in BUDGET_CATEGORIES)
             if not has_budget:
-                st.info("위에서 예산을 입력하면 여기에 결과가 표시됩니다.")
+                st.info("위에서 소비 목표를 입력하면 여기에 결과가 표시됩니다.")
             else:
                 for cat in BUDGET_CATEGORIES:
                     budget = st.session_state["budgets"].get(cat, 0)
