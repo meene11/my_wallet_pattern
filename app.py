@@ -128,6 +128,33 @@ with st.sidebar:
     use_sample = st.button("샘플 데이터 불러오기", use_container_width=True)
 
     st.divider()
+    st.subheader("⚙️ 충동소비 탐지 기준")
+    st.caption("내 소비 패턴에 맞게 조정하세요")
+
+    thr_cat_mult = st.slider(
+        "카테고리 평균 배수 초과",
+        min_value=1.5, max_value=5.0, value=float(IMPULSE_CAT_MULTIPLIER), step=0.5,
+        help="평소 그 카테고리 평균의 N배 넘으면 충동소비로 분류",
+    )
+    thr_night_hour = st.slider(
+        "야간 기준 시간",
+        min_value=18, max_value=23, value=int(IMPULSE_NIGHT_HOUR), step=1,
+        help="이 시간 이후 결제를 야간 충동소비로 분류",
+        format="%d시",
+    )
+    thr_freq_count = st.slider(
+        "동일 카테고리 일일 건수",
+        min_value=2, max_value=10, value=int(IMPULSE_FREQ_COUNT), step=1,
+        help="하루에 같은 카테고리에서 N건 이상이면 충동소비로 분류",
+    )
+    thr_daily_mult = st.slider(
+        "하루 지출 평균 배수 초과",
+        min_value=1.2, max_value=3.0, value=float(IMPULSE_DAILY_MULTIPLIER), step=0.1,
+        help="그날 총 지출이 내 일평균의 N배 넘으면 충동소비로 분류",
+        format="%.1fx",
+    )
+
+    st.divider()
     st.caption("""
 **지원 형식**
 - CSV (UTF-8, EUC-KR 모두 OK)
@@ -211,7 +238,11 @@ if df_raw is not None:
 
     if can_process:
         try:
-            df = preprocess(df_raw, col_map)
+            df = preprocess(df_raw, col_map,
+                            cat_multiplier=thr_cat_mult,
+                            night_hour=thr_night_hour,
+                            freq_count=thr_freq_count,
+                            daily_multiplier=thr_daily_mult)
             summary = get_summary(df)
         except Exception as e:
             st.error(f"데이터 처리 오류: {e}")
