@@ -104,6 +104,44 @@ st.markdown("""
         color: #FF6B6B !important;
         border: 2px solid #FF6B6B !important;
     }
+    .threshold-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #f0faf4;
+        border-left: 3px solid #2ecc71;
+        border-radius: 6px;
+        padding: 6px 10px;
+        margin-bottom: 6px;
+        font-size: 0.82rem;
+    }
+    .threshold-label {
+        color: #2c7a4b;
+        font-weight: 600;
+    }
+    .threshold-val {
+        background: #2ecc71;
+        color: white;
+        border-radius: 10px;
+        padding: 2px 9px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .threshold-apply-btn button {
+        background: linear-gradient(135deg, #27ae60, #2ecc71) !important;
+        color: white !important;
+        font-weight: 700 !important;
+        border: none !important;
+        border-radius: 8px !important;
+        box-shadow: 0 3px 10px rgba(46,204,113,0.35) !important;
+        transition: all 0.2s !important;
+    }
+    .threshold-apply-btn button:hover {
+        background: linear-gradient(135deg, #2ecc71, #27ae60) !important;
+        box-shadow: 0 5px 14px rgba(46,204,113,0.5) !important;
+        transform: translateY(-1px) !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -137,45 +175,60 @@ with st.sidebar:
 
     st.divider()
     with st.expander("⚙️ 충동소비 탐지 기준", expanded=False):
-        st.caption("값 변경 후 아래 버튼을 눌러야 분석에 반영됩니다.")
+        st.markdown(
+            '<p style="color:#2c7a4b;font-size:0.8rem;margin-bottom:10px;">'
+            '슬라이더 조정 후 <b>기준 적용</b> 버튼을 눌러야 반영됩니다.</p>',
+            unsafe_allow_html=True,
+        )
 
+        # 현재 적용된 값 배지 표시
+        _cm  = float(st.session_state.get("applied_cat_mult",   IMPULSE_CAT_MULTIPLIER))
+        _nh  = int(st.session_state.get("applied_night_hour",   IMPULSE_NIGHT_HOUR))
+        _fc  = int(st.session_state.get("applied_freq_count",   IMPULSE_FREQ_COUNT))
+        _dm  = float(st.session_state.get("applied_daily_mult", IMPULSE_DAILY_MULTIPLIER))
+        st.markdown(f"""
+<div class="threshold-row"><span class="threshold-label">카테고리 평균 초과</span><span class="threshold-val">{_cm:.1f}배</span></div>
+<div class="threshold-row"><span class="threshold-label">야간 기준 시간</span><span class="threshold-val">{_nh}시 이후</span></div>
+<div class="threshold-row"><span class="threshold-label">동일 카테고리 건수</span><span class="threshold-val">일 {_fc}건+</span></div>
+<div class="threshold-row"><span class="threshold-label">하루 지출 초과</span><span class="threshold-val">평균 {_dm:.1f}배</span></div>
+""", unsafe_allow_html=True)
+
+        st.markdown("---")
         thr_cat_mult = st.slider(
             "카테고리 평균 배수 초과",
             min_value=1.5, max_value=5.0,
-            value=float(st.session_state.get("applied_cat_mult", IMPULSE_CAT_MULTIPLIER)),
-            step=0.5,
+            value=_cm, step=0.5,
             help="평소 그 카테고리 평균의 N배 넘으면 충동소비로 분류",
         )
         thr_night_hour = st.slider(
             "야간 기준 시간",
             min_value=18, max_value=23,
-            value=int(st.session_state.get("applied_night_hour", IMPULSE_NIGHT_HOUR)),
-            step=1,
+            value=_nh, step=1,
             help="이 시간 이후 결제를 야간 충동소비로 분류",
             format="%d시",
         )
         thr_freq_count = st.slider(
             "동일 카테고리 일일 건수",
             min_value=2, max_value=10,
-            value=int(st.session_state.get("applied_freq_count", IMPULSE_FREQ_COUNT)),
-            step=1,
+            value=_fc, step=1,
             help="하루에 같은 카테고리에서 N건 이상이면 충동소비로 분류",
         )
         thr_daily_mult = st.slider(
             "하루 지출 평균 배수 초과",
             min_value=1.2, max_value=3.0,
-            value=float(st.session_state.get("applied_daily_mult", IMPULSE_DAILY_MULTIPLIER)),
-            step=0.1,
+            value=_dm, step=0.1,
             help="그날 총 지출이 내 일평균의 N배 넘으면 충동소비로 분류",
             format="%.1fx",
         )
 
+        st.markdown('<div class="threshold-apply-btn">', unsafe_allow_html=True)
         if st.button("✅ 기준 적용하기", use_container_width=True):
             st.session_state["applied_cat_mult"] = thr_cat_mult
             st.session_state["applied_night_hour"] = thr_night_hour
             st.session_state["applied_freq_count"] = thr_freq_count
             st.session_state["applied_daily_mult"] = thr_daily_mult
             st.success("탐지 기준이 반영됐습니다!")
+        st.markdown('</div>', unsafe_allow_html=True)
 
     # 실제 분석에 사용할 값 (버튼 누른 값 기준)
     thr_cat_mult   = float(st.session_state.get("applied_cat_mult",   IMPULSE_CAT_MULTIPLIER))
@@ -756,46 +809,46 @@ if df_raw is not None:
         # │ TAB 4 – 내역 조회
         # └─────────────────────────────────────────────────────
         with tab4:
-            # 필터
-            col_f1, col_f2 = st.columns(2)
-            with col_f1:
-                cats = ["전체"] + sorted([str(c) for c in df["category"].dropna().unique().tolist()])
-                selected_cat = st.selectbox("카테고리 필터", cats)
-            with col_f2:
-                min_amt = int(df["amount"].min())
-                max_amt = int(df["amount"].max())
-                amt_range = st.slider("금액 범위", min_amt, max_amt, (min_amt, max_amt), step=1000)
+            # 먼저 전체 df로 소비왕 rank 계산 (필터 전 전체 기준)
+            full_rank = df["amount"].rank(method="first", ascending=False).astype(int)
+            KING_EMOJI = {1: "🤬", 2: "😡", 3: "😤"}
 
-            filtered = df.copy()
-            if selected_cat != "전체":
-                filtered = filtered[filtered["category"] == selected_cat]
-            filtered = filtered[(filtered["amount"] >= amt_range[0]) & (filtered["amount"] <= amt_range[1])]
+            base_cols = ["date", "category", "amount", "is_impulse", "is_night"]
+            base_cols = [c for c in base_cols if c in df.columns]
+            raw_display = df[base_cols].copy()
+            raw_display.insert(0, "소비왕", full_rank.map(KING_EMOJI).fillna(""))
+            raw_display = raw_display.rename(columns={
+                "date": "날짜", "category": "카테고리",
+                "amount": "금액", "is_impulse": "충동소비", "is_night": "야간소비",
+            })
+            raw_display = raw_display.sort_values("날짜", ascending=False)
+
+            # 필터
+            col_f1, col_f2, col_f3 = st.columns(3)
+            with col_f1:
+                filter_king = st.checkbox("🤬 소비왕 (상위 3건)")
+            with col_f2:
+                filter_impulse = st.checkbox("⚡ 충동소비")
+            with col_f3:
+                filter_night = st.checkbox("🌙 야간소비")
+
+            filtered = raw_display.copy()
+            if filter_king:
+                filtered = filtered[filtered["소비왕"] != ""]
+            if filter_impulse:
+                filtered = filtered[filtered["충동소비"] == True]
+            if filter_night and "야간소비" in filtered.columns:
+                filtered = filtered[filtered["야간소비"] == True]
 
             st.caption(f"{len(filtered)}건 표시 중")
 
-            base_cols = ["date", "category", "subcategory", "amount", "is_impulse", "is_night"]
-            base_cols = [c for c in base_cols if c in filtered.columns]
-            raw_display = filtered[base_cols].sort_values("date", ascending=False).copy()
-
-            # 소비왕 컬럼: 금액 상위 1~3위에 이모티콘
-            KING_EMOJI = {1: "🤬", 2: "😡", 3: "😤"}
-            rank = raw_display["amount"].rank(method="first", ascending=False).astype(int)
-            raw_display.insert(0, "소비왕", rank.map(KING_EMOJI).fillna(""))
-
-            # 컬럼명 한글화
-            rename_map = {
-                "date": "날짜", "category": "카테고리", "subcategory": "소분류",
-                "amount": "금액", "is_impulse": "충동소비", "is_night": "야간소비",
-            }
-            raw_display = raw_display.rename(columns=rename_map)
-
             # 충동소비 행 흐린 핑크 하이라이트
             def _highlight_impulse(row):
-                if "충동소비" in row.index and row["충동소비"]:
+                if row.get("충동소비", False):
                     return ["background-color: #ffe4e8"] * len(row)
                 return [""] * len(row)
 
-            styled = raw_display.style.apply(_highlight_impulse, axis=1)
+            styled = filtered.style.apply(_highlight_impulse, axis=1)
             st.dataframe(styled, use_container_width=True)
 
             # 다운로드 (스타일 제외한 원본)
