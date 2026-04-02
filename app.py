@@ -19,6 +19,7 @@ from src.data_loader import (
     IMPULSE_CAT_MULTIPLIER, IMPULSE_NIGHT_HOUR, IMPULSE_FREQ_COUNT, IMPULSE_DAILY_MULTIPLIER,
     DIAG_HIGH_THRESHOLD, DIAG_MED_THRESHOLD,
 )
+from src.gemini_analyzer import analyze_impulse
 
 # ── 페이지 설정 ─────────────────────────────────────────────
 st.set_page_config(
@@ -472,6 +473,38 @@ if df_raw is not None:
                 st.warning(f"21시 이후 지출 비율 **{night_ratio:.1f}%** — 저녁 이후 충동 구매 패턴이 있어요.")
 
             st.info(f"가장 많이 쓴 카테고리: **{top_cat}** ({top_amount:,}원) — 이 항목 예산을 먼저 관리해보세요.")
+
+            # ── AI 소비 코칭 (Gemini) ──────────────────────────
+            st.divider()
+            st.markdown("**🤖 AI 소비 코칭**")
+            st.caption("Gemini가 소비 패턴을 읽고 원인과 조언을 한 줄씩 알려드려요.")
+
+            if st.button("AI 분석 받기", key="gemini_btn", use_container_width=False):
+                with st.spinner("Gemini 분석 중..."):
+                    try:
+                        result = analyze_impulse(summary, df)
+                        st.session_state["gemini_result"] = result
+                        st.session_state["gemini_error"] = None
+                    except Exception as e:
+                        st.session_state["gemini_result"] = None
+                        st.session_state["gemini_error"] = str(e)
+
+            if st.session_state.get("gemini_result"):
+                lines = st.session_state["gemini_result"].splitlines()
+                for line in lines:
+                    if line.startswith("원인:"):
+                        st.markdown(
+                            f'<div class="impulse-card">🔍 {line}</div>',
+                            unsafe_allow_html=True,
+                        )
+                    elif line.startswith("코칭:"):
+                        st.markdown(
+                            f'<div class="metric-card">💡 {line}</div>',
+                            unsafe_allow_html=True,
+                        )
+
+            if st.session_state.get("gemini_error"):
+                st.error(f"AI 분석 실패: {st.session_state['gemini_error']}")
 
         # ┌─────────────────────────────────────────────────────
         # │ TAB 4 – 원본 데이터
