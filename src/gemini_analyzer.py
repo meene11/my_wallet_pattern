@@ -1,10 +1,12 @@
 """
 OpenAI API 기반 소비 패턴 분석 및 코칭
 - 메모 텍스트의 감정 키워드를 분석에 포함하여 충동소비 원인을 정밀하게 파악
+- RAG: 유사한 소비 코칭 문서를 검색하여 GPT 프롬프트에 주입
 """
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
+from src.rag_engine import retrieve_coaching_context
 
 load_dotenv()
 
@@ -73,8 +75,19 @@ def analyze_impulse(summary: dict, df) -> str:
     else:
         imp_cat_str = "없음"
 
-    # 메모 감정 텍스트 (핵심 추가)
+    # 메모 감정 텍스트
     memo_str = _extract_memo_emotions(df)
+
+    # RAG: 유저 패턴과 유사한 코칭 문서 검색
+    rag_query = f"충동소비 카테고리: {imp_cat_str}, 메모: {memo_str}, 야간지출비율: {night_ratio:.1f}%"
+    rag_context = retrieve_coaching_context(rag_query, n_results=2)
+
+    rag_section = ""
+    if rag_context:
+        rag_section = f"""
+[참고 코칭 자료 — 아래 내용을 참고하여 더 구체적인 조언을 작성하세요]
+{rag_context}
+"""
 
     prompt = f"""당신은 친근하고 솔직한 재무 코치입니다. 아래 소비 데이터를 보고 짧고 실용적인 코멘트를 한국어로 작성해주세요.
 
@@ -86,11 +99,12 @@ def analyze_impulse(summary: dict, df) -> str:
 - 지출 많은 카테고리: {cat_str}
 - 충동소비 주요 카테고리: {imp_cat_str}
 - 충동소비 시 작성한 메모(감정/상황): {memo_str}
-
+{rag_section}
 규칙:
 - 위 데이터에 없는 카테고리, 상품, 서비스명은 절대 언급하지 마세요.
 - 실제 데이터에 나온 카테고리명과 메모 내용만 근거로 사용하세요.
 - 메모에 감정 표현이 있다면 반드시 원인 분석에 반영하세요.
+- 참고 코칭 자료가 있다면 코칭 조언에 자연스럽게 녹여내세요.
 - 추측이나 가정 없이 데이터 그대로 분석하세요.
 
 아래 형식으로 각각 한 문장씩 작성하세요. 다른 말은 쓰지 마세요.
