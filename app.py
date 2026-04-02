@@ -117,6 +117,14 @@ with st.sidebar:
     st.divider()
 
     st.subheader("📂 파일 업로드")
+
+    card_preset = st.selectbox(
+        "카드사 / 형식 선택",
+        ["자동 감지", "카카오페이", "신한카드", "국민카드", "하나카드", "직접 입력"],
+        help="선택하면 컬럼이 자동 세팅됩니다",
+    )
+    st.session_state["card_preset"] = card_preset
+
     uploaded = st.file_uploader(
         "CSV 또는 Excel 파일",
         type=["csv", "xlsx", "xls"],
@@ -208,7 +216,22 @@ if df_raw is not None:
         st.dataframe(df_raw.head(5), use_container_width=True)
         st.caption(f"감지된 컬럼: {list(df_raw.columns)}")
 
+    # 카드사 프리셋 정의 (컬럼명 → 표준키 매핑)
+    CARD_PRESETS = {
+        "카카오페이": {"date": "거래일시", "amount": "금액", "category": "분류", "memo": "내용"},
+        "신한카드":   {"date": "이용일자", "amount": "이용금액", "category": "가맹점업종", "memo": "가맹점명"},
+        "국민카드":   {"date": "이용일", "amount": "이용금액", "category": "업종", "memo": "가맹점"},
+        "하나카드":   {"date": "승인일자", "amount": "승인금액", "category": "업종명", "memo": "가맹점명"},
+    }
+
+    preset = st.session_state.get("card_preset", "자동 감지")
     col_map = auto_map_columns(df_raw)
+
+    if preset in CARD_PRESETS:
+        for std_key, col_name in CARD_PRESETS[preset].items():
+            if col_name in df_raw.columns:
+                col_map[std_key] = col_name
+
 
     # 자동 매핑 결과 표시
     missing = [k for k in ["date", "amount", "category"] if k not in col_map]
