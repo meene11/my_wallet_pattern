@@ -274,11 +274,12 @@ if df_raw is not None:
         # ══════════════════════════════════════════════════════
         # 탭 구성
         # ══════════════════════════════════════════════════════
-        tab1, tab2, tab3, tab4 = st.tabs([
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
             "📊 전체 요약",
             "📅 패턴 분석",
             "🚨 충동 소비 탐지",
             "🗃 원본 데이터",
+            "💰 예산 관리",
         ])
 
         # ┌─────────────────────────────────────────────────────
@@ -665,6 +666,88 @@ if df_raw is not None:
                 file_name="spending_analysis.csv",
                 mime="text/csv",
             )
+
+        # ┌─────────────────────────────────────────────────────
+        # │ TAB 5 – 예산 관리
+        # └─────────────────────────────────────────────────────
+        with tab5:
+            st.markdown('<div class="section-title">💰 카테고리별 예산 설정</div>', unsafe_allow_html=True)
+            st.caption("이번 달 카테고리별 예산을 입력하면 초과 여부를 바로 확인할 수 있어요.")
+
+            categories = sorted(df["category"].dropna().unique().tolist())
+            cat_actual = df.groupby("category")["amount"].sum()
+
+            # 저장된 예산 불러오기 (session_state 유지)
+            if "budgets" not in st.session_state:
+                st.session_state["budgets"] = {}
+
+            st.markdown("**예산 입력**")
+            cols = st.columns(3)
+            for i, cat in enumerate(categories):
+                with cols[i % 3]:
+                    default_val = int(st.session_state["budgets"].get(cat, 0))
+                    val = st.number_input(
+                        cat, min_value=0, step=10000, value=default_val,
+                        key=f"budget_{cat}", format="%d"
+                    )
+                    st.session_state["budgets"][cat] = val
+
+            st.divider()
+            st.markdown("**예산 vs 실제 지출**")
+
+            has_budget = any(v > 0 for v in st.session_state["budgets"].values())
+            if not has_budget:
+                st.info("위에서 예산을 입력하면 여기에 결과가 표시됩니다.")
+            else:
+                for cat in categories:
+                    budget = st.session_state["budgets"].get(cat, 0)
+                    if budget == 0:
+                        continue
+                    actual = int(cat_actual.get(cat, 0))
+                    ratio = actual / budget if budget > 0 else 0
+                    over = actual > budget
+
+                    col_a, col_b = st.columns([3, 1])
+                    with col_a:
+                        bar_color = "🔴" if over else "🟢"
+                        st.markdown(f"**{bar_color} {cat}**")
+                        st.progress(min(ratio, 1.0))
+                    with col_b:
+                        st.metric(
+                            label="사용 / 예산",
+                            value=f"{actual:,}원",
+                            delta=f"{actual - budget:+,}원",
+                            delta_color="inverse",
+                        )
+
+                # 전체 요약
+                st.divider()
+                total_budget = sum(
+                    v for k, v in st.session_state["budgets"].items() if v > 0
+                )
+                total_actual = int(sum(
+                    cat_actual.get(k, 0)
+                    for k in st.session_state["budgets"] if st.session_state["budgets"][k] > 0
+                ))
+                over_cats = [
+                    k for k, v in st.session_state["budgets"].items()
+                    if v > 0 and cat_actual.get(k, 0) > v
+                ]
+
+                c1, c2, c3 = st.columns(3)
+                c1.metric("총 예산", f"{total_budget:,}원")
+                c2.metric("총 지출", f"{total_actual:,}원",
+                          delta=f"{total_actual - total_budget:+,}원",
+                          delta_color="inverse")
+                c3.metric("초과 카테고리", f"{len(over_cats)}개",
+                          delta="주의 필요" if over_cats else "양호",
+                          delta_color="inverse" if over_cats else "normal")
+
+                if over_cats:
+                    st.error(f"예산 초과 항목: **{', '.join(over_cats)}**")
+                else:
+                    st.success("모든 카테고리가 예산 범위 내에 있습니다!")
+
     else:
         st.warning("필수 컬럼(날짜, 금액, 카테고리)을 모두 매핑해야 분석이 시작됩니다.")
 
