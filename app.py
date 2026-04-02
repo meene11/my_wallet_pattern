@@ -142,6 +142,22 @@ st.markdown("""
         box-shadow: 0 5px 14px rgba(46,204,113,0.5) !important;
         transform: translateY(-1px) !important;
     }
+    /* 탭 가독성 강화 */
+    button[data-baseweb="tab"] {
+        font-size: 0.92rem !important;
+        font-weight: 600 !important;
+        padding: 10px 18px !important;
+        color: #555 !important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        color: #FF6B6B !important;
+        border-bottom: 3px solid #FF6B6B !important;
+        font-weight: 700 !important;
+    }
+    button[data-baseweb="tab"]:hover {
+        color: #FF6B6B !important;
+        background: #fff5f5 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -348,11 +364,13 @@ if df_raw is not None:
         # ══════════════════════════════════════════════════════
         # 탭 구성
         # ══════════════════════════════════════════════════════
+        _impulse_n = summary["impulse_count"]
+        _total_n   = len(df)
         tab1, tab2, tab3, tab4, tab5 = st.tabs([
             "📊 전체 요약",
             "📅 패턴 분석",
-            "🚨 충동 소비 탐지",
-            "🗃 내역 조회",
+            f"🚨 충동 소비 탐지  {_impulse_n}건",
+            f"🗃 내역 조회  {_total_n}건",
             "💰 예산 관리",
         ])
 
@@ -823,32 +841,37 @@ if df_raw is not None:
             })
             raw_display = raw_display.sort_values("날짜", ascending=False)
 
-            # 필터
-            col_f1, col_f2, col_f3 = st.columns(3)
-            with col_f1:
-                filter_king = st.checkbox("🤬 소비왕 (상위 3건)")
-            with col_f2:
-                filter_impulse = st.checkbox("⚡ 충동소비")
-            with col_f3:
-                filter_night = st.checkbox("🌙 야간소비")
+            # 필터 selectbox (단일 선택)
+            filter_option = st.selectbox(
+                "조회 필터",
+                ["전체", "🤬 소비왕 (상위 3건)", "⚡ 충동소비", "🌙 야간소비"],
+                key="raw_filter",
+            )
 
             filtered = raw_display.copy()
-            if filter_king:
+            if filter_option == "🤬 소비왕 (상위 3건)":
                 filtered = filtered[filtered["소비왕"] != ""]
-            if filter_impulse:
+            elif filter_option == "⚡ 충동소비":
                 filtered = filtered[filtered["충동소비"] == True]
-            if filter_night and "야간소비" in filtered.columns:
+            elif filter_option == "🌙 야간소비" and "야간소비" in filtered.columns:
                 filtered = filtered[filtered["야간소비"] == True]
 
             st.caption(f"{len(filtered)}건 표시 중")
 
-            # 충동소비 행 흐린 핑크 하이라이트
+            # 충동소비 행 흐린 핑크 하이라이트 + 소비왕 이모티콘 크게/중앙
             def _highlight_impulse(row):
                 if row.get("충동소비", False):
                     return ["background-color: #ffe4e8"] * len(row)
                 return [""] * len(row)
 
-            styled = filtered.style.apply(_highlight_impulse, axis=1)
+            styled = (
+                filtered.style
+                .apply(_highlight_impulse, axis=1)
+                .set_properties(subset=["소비왕"], **{
+                    "font-size": "1.6rem",
+                    "text-align": "center",
+                })
+            )
             st.dataframe(styled, use_container_width=True)
 
             # 다운로드 (스타일 제외한 원본)
