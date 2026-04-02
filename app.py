@@ -500,18 +500,40 @@ if df_raw is not None:
             st.markdown("**충동 소비 의심 거래 목록**")
 
             if len(impulse_df) > 0:
-                show_cols = ["date", "category", "amount", "impulse_reason"]
-                if "memo" in impulse_df.columns:
-                    show_cols = ["date", "category", "amount", "memo", "impulse_reason"]
-                show_cols = [c for c in show_cols if c in impulse_df.columns]
-                st.dataframe(
-                    impulse_df[show_cols].sort_values("amount", ascending=False).rename(
-                        columns={"impulse_reason": "탐지 이유", "date": "날짜",
-                                 "category": "카테고리", "amount": "금액", "memo": "메모"}
-                    ),
-                    use_container_width=True,
-                    height=320,
+                # 탐지 기준 필터
+                FLAG_MAP = {
+                    f"카테고리 평균 {thr_cat_mult:.1f}배 초과": "flag_over_cat_avg",
+                    f"{thr_night_hour}시 이후 결제":            "flag_night",
+                    f"동일 카테고리 {thr_freq_count}건+":        "flag_freq_impulse",
+                    "하루 지출 평균 초과":                        "flag_over_daily_avg",
+                    "주말 야간 결제":                             "flag_weekend_night",
+                }
+                avail_flags = {k: v for k, v in FLAG_MAP.items()
+                               if v in impulse_df.columns and impulse_df[v].any()}
+                selected_flags = st.multiselect(
+                    "탐지 기준 필터 (복수 선택 시 OR 조건)",
+                    list(avail_flags.keys()),
+                    key="impulse_filter",
                 )
+                if selected_flags:
+                    mask = pd.Series(False, index=impulse_df.index)
+                    for label in selected_flags:
+                        mask = mask | impulse_df[avail_flags[label]]
+                    view_df = impulse_df[mask]
+                else:
+                    view_df = impulse_df
+
+                show_cols = ["date", "category", "amount", "impulse_reason"]
+                show_cols = [c for c in show_cols if c in view_df.columns]
+                display_df = (
+                    view_df[show_cols]
+                    .sort_values("amount", ascending=False)
+                    .rename(columns={"impulse_reason": "탐지 이유", "date": "날짜",
+                                     "category": "카테고리", "amount": "금액"})
+                    .reset_index(drop=True)
+                )
+                display_df.index = range(1, len(display_df) + 1)
+                st.dataframe(display_df, use_container_width=True, height=480)
 
                 # 탐지 이유별 건수 통계
                 st.markdown("**탐지 이유별 건수**")
@@ -749,12 +771,34 @@ if df_raw is not None:
             filtered = filtered[(filtered["amount"] >= amt_range[0]) & (filtered["amount"] <= amt_range[1])]
 
             st.caption(f"{len(filtered)}건 표시 중")
-            show_cols = ["date", "category", "subcategory", "amount", "memo", "is_impulse", "is_night"]
-            show_cols = [c for c in show_cols if c in filtered.columns]
-            st.dataframe(filtered[show_cols].sort_values("date", ascending=False), use_container_width=True)
 
-            # 다운로드
-            csv = filtered[show_cols].to_csv(index=False, encoding="utf-8-sig")
+            base_cols = ["date", "category", "subcategory", "amount", "is_impulse", "is_night"]
+            base_cols = [c for c in base_cols if c in filtered.columns]
+            raw_display = filtered[base_cols].sort_values("date", ascending=False).copy()
+
+            # 소비왕 컬럼: 금액 상위 1~3위에 이모티콘
+            KING_EMOJI = {1: "🤬", 2: "😡", 3: "😤"}
+            rank = raw_display["amount"].rank(method="first", ascending=False).astype(int)
+            raw_display.insert(0, "소비왕", rank.map(KING_EMOJI).fillna(""))
+
+            # 컬럼명 한글화
+            rename_map = {
+                "date": "날짜", "category": "카테고리", "subcategory": "소분류",
+                "amount": "금액", "is_impulse": "충동소비", "is_night": "야간소비",
+            }
+            raw_display = raw_display.rename(columns=rename_map)
+
+            # 충동소비 행 흐린 핑크 하이라이트
+            def _highlight_impulse(row):
+                if "충동소비" in row.index and row["충동소비"]:
+                    return ["background-color: #ffe4e8"] * len(row)
+                return [""] * len(row)
+
+            styled = raw_display.style.apply(_highlight_impulse, axis=1)
+            st.dataframe(styled, use_container_width=True)
+
+            # 다운로드 (스타일 제외한 원본)
+            csv = raw_display.to_csv(index=False, encoding="utf-8-sig")
             st.download_button(
                 "분석 결과 CSV 다운로드",
                 data=csv,
