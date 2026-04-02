@@ -128,22 +128,18 @@ st.markdown("""
         font-weight: 700;
         white-space: nowrap;
     }
-    /* 사이드바 expander 안 버튼 = 기준 적용하기 */
-    section[data-testid="stSidebar"] details div[data-testid="stButton"] button {
-        background: linear-gradient(135deg, #27ae60, #2ecc71) !important;
-        color: white !important;
-        font-weight: 700 !important;
-        font-size: 0.9rem !important;
-        letter-spacing: 0.03em !important;
-        border: none !important;
+    /* 사이드바 충동소비 탐지 기준 expander 헤더 */
+    section[data-testid="stSidebar"] [data-testid="stExpander"] summary {
+        background: #fff5f5 !important;
+        border: 1.5px solid #FF6B6B !important;
         border-radius: 8px !important;
-        box-shadow: 0 3px 10px rgba(46,204,113,0.35) !important;
-        transition: all 0.2s !important;
+        padding: 10px 14px !important;
+        font-weight: 700 !important;
+        font-size: 0.92rem !important;
+        color: #FF6B6B !important;
     }
-    section[data-testid="stSidebar"] details div[data-testid="stButton"] button:hover {
-        background: linear-gradient(135deg, #2ecc71, #1e9e52) !important;
-        box-shadow: 0 5px 14px rgba(46,204,113,0.55) !important;
-        transform: translateY(-1px) !important;
+    section[data-testid="stSidebar"] [data-testid="stExpander"] summary:hover {
+        background: #ffe8e8 !important;
     }
     /* 탭 가독성 강화 */
     button[data-baseweb="tab"] {
