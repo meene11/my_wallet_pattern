@@ -15,6 +15,9 @@ env/
 data/raw/*.xlsx
 data/raw/*.json
 
+# ChromaDB 벡터 인덱스 (로컬 생성, git 제외)
+data/.chromadb/
+
 # API 키
 .env
 secrets.json

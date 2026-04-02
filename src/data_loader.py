@@ -188,8 +188,15 @@ def auto_map_columns(df: pd.DataFrame) -> dict:
     return mapping
 
 
-def preprocess(df: pd.DataFrame, col_map: dict) -> pd.DataFrame:
-    """매핑된 컬럼 기준으로 전처리"""
+def preprocess(
+    df: pd.DataFrame,
+    col_map: dict,
+    cat_multiplier: float = IMPULSE_CAT_MULTIPLIER,
+    night_hour: int = IMPULSE_NIGHT_HOUR,
+    freq_count: int = IMPULSE_FREQ_COUNT,
+    daily_multiplier: float = IMPULSE_DAILY_MULTIPLIER,
+) -> pd.DataFrame:
+    """매핑된 컬럼 기준으로 전처리 (임계값은 사이드바 슬라이더로 오버라이드 가능)"""
     result = pd.DataFrame()
 
     # 날짜 + 시간 파싱
@@ -259,11 +266,11 @@ def preprocess(df: pd.DataFrame, col_map: dict) -> pd.DataFrame:
 
     # 기준 1: 해당 카테고리 평균의 N배 이상 지출
     cat_mean = result.groupby("category")["amount"].transform("mean")
-    result["flag_over_cat_avg"] = result["amount"] > cat_mean * IMPULSE_CAT_MULTIPLIER
+    result["flag_over_cat_avg"] = result["amount"] > cat_mean * cat_multiplier
 
     # 기준 2: 야간 시작 시간 이후 결제
     result["flag_night"] = result["hour"].apply(
-        lambda h: h >= IMPULSE_NIGHT_HOUR if not pd.isna(h) else False
+        lambda h: h >= night_hour if not pd.isna(h) else False
     )
 
     # 기준 3: 충동성 카테고리에서 하루 N건 이상
@@ -276,12 +283,12 @@ def preprocess(df: pd.DataFrame, col_map: dict) -> pd.DataFrame:
     )["amount"].transform("count")
     result["flag_freq_impulse"] = False
     impulse_idx = result[result["_is_impulse_cat"]].index
-    result.loc[impulse_idx, "flag_freq_impulse"] = daily_impulse_cnt >= IMPULSE_FREQ_COUNT
+    result.loc[impulse_idx, "flag_freq_impulse"] = daily_impulse_cnt >= freq_count
 
     # 기준 4: 하루 총 지출이 개인 일평균의 N배 초과
     daily_total = result.groupby(result["date"].dt.date)["amount"].transform("sum")
     personal_daily_avg = result.groupby(result["date"].dt.date)["amount"].sum().mean()
-    result["flag_over_daily_avg"] = daily_total > personal_daily_avg * IMPULSE_DAILY_MULTIPLIER
+    result["flag_over_daily_avg"] = daily_total > personal_daily_avg * daily_multiplier
 
     # 기준 5: 주말 야간 (토·일 + 21시 이후)
     result["flag_weekend_night"] = (
@@ -300,13 +307,13 @@ def preprocess(df: pd.DataFrame, col_map: dict) -> pd.DataFrame:
     def impulse_reason(row):
         reasons = []
         if row["flag_over_cat_avg"]:
-            reasons.append(f"카테고리 평균 {IMPULSE_CAT_MULTIPLIER:.0f}배 초과")
+            reasons.append(f"카테고리 평균 {cat_multiplier:.1f}배 초과")
         if row["flag_night"]:
-            reasons.append(f"{IMPULSE_NIGHT_HOUR}시 이후 결제")
+            reasons.append(f"{night_hour}시 이후 결제")
         if row["flag_freq_impulse"]:
-            reasons.append(f"같은 날 동일 카테고리 {IMPULSE_FREQ_COUNT}건 이상")
+            reasons.append(f"같은 날 동일 카테고리 {freq_count}건 이상")
         if row["flag_over_daily_avg"]:
-            reasons.append(f"하루 지출 평균 {IMPULSE_DAILY_MULTIPLIER}배 초과")
+            reasons.append(f"하루 지출 평균 {daily_multiplier:.1f}배 초과")
         if row["flag_weekend_night"]:
             reasons.append("주말 야간 결제")
         return " / ".join(reasons) if reasons else ""
