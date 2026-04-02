@@ -836,6 +836,7 @@ if df_raw is not None:
                 "date": "날짜", "category": "카테고리",
                 "amount": "금액", "is_impulse": "충동소비", "is_night": "야간소비",
             })
+            raw_display["금액"] = raw_display["금액"].apply(lambda x: f"{int(x):,}")
             raw_display = raw_display.sort_values("날짜", ascending=False)
 
             # 필터 selectbox (단일 선택)
@@ -865,8 +866,9 @@ if df_raw is not None:
                 filtered.style
                 .apply(_highlight_impulse, axis=1)
                 .set_properties(subset=["소비왕"], **{
-                    "font-size": "1.6rem",
+                    "font-size": "2.2rem",
                     "text-align": "center",
+                    "vertical-align": "middle",
                 })
             )
             st.dataframe(styled, use_container_width=True)
