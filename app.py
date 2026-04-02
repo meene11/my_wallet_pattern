@@ -368,7 +368,7 @@ if df_raw is not None:
             "📅 패턴 분석",
             f"🚨 충동 소비 탐지  {_impulse_n}건",
             f"🗃 내역 조회  {_total_n}건",
-            "💰 예산 관리",
+            "💰 소비 목표",
         ])
 
         # ┌─────────────────────────────────────────────────────
@@ -748,11 +748,11 @@ if df_raw is not None:
 
 
         # ┌─────────────────────────────────────────────────────
-        # │ TAB 5 – 예산 관리
+        # │ TAB 5 – 소비 목표
         # └─────────────────────────────────────────────────────
         with tab5:
-            st.markdown('<div class="section-title">💰 카테고리별 예산 설정</div>', unsafe_allow_html=True)
-            st.caption("이번 달 카테고리별 예산을 입력하면 초과 여부를 바로 확인할 수 있어요.")
+            st.markdown('<div class="section-title">💰 카테고리별 소비 목표</div>', unsafe_allow_html=True)
+            st.caption("이번 달 목표 금액을 입력하면 실제 지출과 바로 비교할 수 있어요.")
 
             BUDGET_CATEGORIES = ["식비", "쇼핑", "마트", "카페"]
             cat_actual = df.groupby("category")["amount"].sum()
