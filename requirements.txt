@@ -17,8 +17,8 @@ prophet
 transformers
 sentencepiece
 
-# LLM (Gemini API)
-google-generativeai
+# LLM (OpenAI API)
+openai
 
 # 벡터 DB (RAG)
 chromadb

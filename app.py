@@ -56,6 +56,54 @@ st.markdown("""
         margin: 20px 0 10px 0;
         color: #333;
     }
+.ai-result-cause {
+        background: #fff5f5;
+        border-radius: 12px;
+        padding: 18px 22px;
+        border-left: 5px solid #FF6B6B;
+        margin-bottom: 10px;
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+    .ai-result-coach {
+        background: #f0f7ff;
+        border-radius: 12px;
+        padding: 18px 22px;
+        border-left: 5px solid #4A90E2;
+        margin-bottom: 10px;
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+    div[data-testid="stButton"] > button[kind="primary"] {
+        background: linear-gradient(135deg, #FF6B6B, #ff4757) !important;
+        color: white !important;
+        font-weight: 700 !important;
+        font-size: 1.05rem !important;
+        border: none !important;
+        border-radius: 10px !important;
+        padding: 14px 0 !important;
+        letter-spacing: 0.03em !important;
+        box-shadow: 0 4px 14px rgba(255, 107, 107, 0.45) !important;
+        transition: all 0.2s !important;
+    }
+    div[data-testid="stButton"] > button[kind="primary"]:hover {
+        background: linear-gradient(135deg, #ff4757, #FF6B6B) !important;
+        box-shadow: 0 6px 20px rgba(255, 107, 107, 0.6) !important;
+        transform: translateY(-1px) !important;
+    }
+    [data-testid="stFileUploaderDropzone"] button {
+        background-color: #FF6B6B !important;
+        color: white !important;
+        border: 2px solid #FF6B6B !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        transition: background-color 0.2s, color 0.2s !important;
+    }
+    [data-testid="stFileUploaderDropzone"] button:hover {
+        background-color: white !important;
+        color: #FF6B6B !important;
+        border: 2px solid #FF6B6B !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -101,12 +149,15 @@ st.caption("단순 가계부가 아닙니다. 소비 심리와 충동 패턴을 
 
 
 # ── 데이터 로드 ───────────────────────────────────────────────
-df_raw = None
 col_map = {}
 
 if uploaded:
     try:
         df_raw = load_file(uploaded)
+        st.session_state["df_raw"] = df_raw
+        st.session_state["data_source"] = "upload"
+        st.session_state["gemini_result"] = None
+        st.session_state["gemini_error"] = None
         st.success(f"✅ 파일 로드 완료! ({len(df_raw)}행 × {len(df_raw.columns)}열)")
     except Exception as e:
         st.error(f"파일 로드 실패: {e}")
@@ -114,8 +165,13 @@ if uploaded:
 
 elif use_sample:
     sample_path = os.path.join(os.path.dirname(__file__), "data/raw/sample_spending.csv")
-    df_raw = pd.read_csv(sample_path)
+    st.session_state["df_raw"] = pd.read_csv(sample_path)
+    st.session_state["data_source"] = "sample"
+    st.session_state["gemini_result"] = None
+    st.session_state["gemini_error"] = None
     st.info("샘플 데이터를 불러왔습니다.")
+
+df_raw = st.session_state.get("df_raw", None)
 
 # ── 컬럼 매핑 UI ─────────────────────────────────────────────
 if df_raw is not None:
@@ -474,37 +530,52 @@ if df_raw is not None:
 
             st.info(f"가장 많이 쓴 카테고리: **{top_cat}** ({top_amount:,}원) — 이 항목 예산을 먼저 관리해보세요.")
 
-            # ── AI 소비 코칭 (Gemini) ──────────────────────────
+            # ── AI 소비 코칭 ──────────────────────────────────────
             st.divider()
-            st.markdown("**🤖 AI 소비 코칭**")
-            st.caption("Gemini가 소비 패턴을 읽고 원인과 조언을 한 줄씩 알려드려요.")
 
-            if st.button("AI 분석 받기", key="gemini_btn", use_container_width=False):
-                with st.spinner("Gemini 분석 중..."):
-                    try:
-                        result = analyze_impulse(summary, df)
-                        st.session_state["gemini_result"] = result
-                        st.session_state["gemini_error"] = None
-                    except Exception as e:
-                        st.session_state["gemini_result"] = None
-                        st.session_state["gemini_error"] = str(e)
+            # 현재 데이터 식별용 해시 (총지출 + 건수 + 충동건수)
+            data_hash = f"{summary['total']}_{summary['count']}_{summary['impulse_count']}"
 
-            if st.session_state.get("gemini_result"):
-                lines = st.session_state["gemini_result"].splitlines()
-                for line in lines:
-                    if line.startswith("원인:"):
-                        st.markdown(
-                            f'<div class="impulse-card">🔍 {line}</div>',
-                            unsafe_allow_html=True,
-                        )
-                    elif line.startswith("코칭:"):
-                        st.markdown(
-                            f'<div class="metric-card">💡 {line}</div>',
-                            unsafe_allow_html=True,
-                        )
+            # 데이터가 바뀌면 이전 결과 자동 무효화
+            if st.session_state.get("gemini_data_hash") != data_hash:
+                st.session_state["gemini_result"] = None
+                st.session_state["gemini_error"] = None
+                st.session_state["gemini_data_hash"] = data_hash
 
-            if st.session_state.get("gemini_error"):
-                st.error(f"AI 분석 실패: {st.session_state['gemini_error']}")
+            @st.fragment
+            def ai_coaching(summary, df):
+                st.markdown('<div class="section-title"><span style="font-size:1.8rem; filter: sepia(1) saturate(5) hue-rotate(5deg) brightness(1.3);">🤖</span> AI 소비 코치</div>', unsafe_allow_html=True)
+
+                if st.button("✨ AI 분석 받기", key="gemini_btn",
+                             use_container_width=True, type="primary"):
+                    with st.spinner("AI가 소비 패턴을 분석 중이에요..."):
+                        try:
+                            result = analyze_impulse(summary, df)
+                            st.session_state["gemini_result"] = result
+                            st.session_state["gemini_error"] = None
+                        except Exception as e:
+                            st.session_state["gemini_result"] = None
+                            st.session_state["gemini_error"] = str(e)
+
+                if st.session_state.get("gemini_result"):
+                    lines = st.session_state["gemini_result"].splitlines()
+                    for line in lines:
+                        line = line.strip()
+                        if line.startswith("원인:"):
+                            st.markdown(
+                                f'<div class="ai-result-cause">🔍 <strong>충동소비 원인</strong><br>{line[3:].strip()}</div>',
+                                unsafe_allow_html=True,
+                            )
+                        elif line.startswith("코칭:"):
+                            st.markdown(
+                                f'<div class="ai-result-coach">💡 <strong>맞춤 코칭</strong><br>{line[3:].strip()}</div>',
+                                unsafe_allow_html=True,
+                            )
+
+                if st.session_state.get("gemini_error"):
+                    st.error(f"AI 분석 실패: {st.session_state['gemini_error']}")
+
+            ai_coaching(summary, df)
 
         # ┌─────────────────────────────────────────────────────
         # │ TAB 4 – 원본 데이터
