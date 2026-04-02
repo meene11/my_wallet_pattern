@@ -128,18 +128,21 @@ st.markdown("""
         font-weight: 700;
         white-space: nowrap;
     }
-    .threshold-apply-btn button {
+    /* 사이드바 expander 안 버튼 = 기준 적용하기 */
+    section[data-testid="stSidebar"] details div[data-testid="stButton"] button {
         background: linear-gradient(135deg, #27ae60, #2ecc71) !important;
         color: white !important;
         font-weight: 700 !important;
+        font-size: 0.9rem !important;
+        letter-spacing: 0.03em !important;
         border: none !important;
         border-radius: 8px !important;
         box-shadow: 0 3px 10px rgba(46,204,113,0.35) !important;
         transition: all 0.2s !important;
     }
-    .threshold-apply-btn button:hover {
-        background: linear-gradient(135deg, #2ecc71, #27ae60) !important;
-        box-shadow: 0 5px 14px rgba(46,204,113,0.5) !important;
+    section[data-testid="stSidebar"] details div[data-testid="stButton"] button:hover {
+        background: linear-gradient(135deg, #2ecc71, #1e9e52) !important;
+        box-shadow: 0 5px 14px rgba(46,204,113,0.55) !important;
         transform: translateY(-1px) !important;
     }
     /* 탭 가독성 강화 */
@@ -237,14 +240,12 @@ with st.sidebar:
             format="%.1fx",
         )
 
-        st.markdown('<div class="threshold-apply-btn">', unsafe_allow_html=True)
         if st.button("✅ 기준 적용하기", use_container_width=True):
             st.session_state["applied_cat_mult"] = thr_cat_mult
             st.session_state["applied_night_hour"] = thr_night_hour
             st.session_state["applied_freq_count"] = thr_freq_count
             st.session_state["applied_daily_mult"] = thr_daily_mult
             st.success("탐지 기준이 반영됐습니다!")
-        st.markdown('</div>', unsafe_allow_html=True)
 
     # 실제 분석에 사용할 값 (버튼 누른 값 기준)
     thr_cat_mult   = float(st.session_state.get("applied_cat_mult",   IMPULSE_CAT_MULTIPLIER))
